@@ -434,7 +434,6 @@ document.addEventListener('click', async (ev) => {
                   const mois = mapMois[moisBrut] || '01';
                   const dateFormatee = `${annee}-${mois}-${jour}`;
                   
-                  // Vérifie si l'événement n'existe pas déjà pour éviter les doublons
                   const exists = S.events.some(e => e.titre === titre && e.date === dateFormatee);
                   if(!exists) {
                       const newDoc = doc(col('evenements'));
