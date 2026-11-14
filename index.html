@@ -24,10 +24,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:none;background:none}
 
-/* Conteneur principal */
 #shell{width:100%;max-width:480px;height:100dvh;display:flex;flex-direction:column;background:var(--bg); position:relative;overflow:hidden;box-shadow:0 0 60px rgba(15,35,95,.15)}
 
-/* En-tête */
 header{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;padding:calc(env(safe-area-inset-top) + 16px) 20px 20px; border-radius:0 0 32px 32px;box-shadow:0 12px 30px rgba(11,42,111,.35);z-index:10;flex-shrink:0; display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:14px}
 .brand-logo{width:48px;height:48px;border-radius:16px;background:rgba(255,255,255,.15);display:grid;place-items:center; font-size:28px;color:var(--orange-2);backdrop-filter:blur(10px)}
@@ -40,13 +38,11 @@ main{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 16px calc(var(--nav-h
 main.no-nav{padding-bottom:28px}
 main::-webkit-scrollbar{width:0}
 
-/* Écrans et Cartes */
 .screen{animation:slideIn .4s cubic-bezier(.2,.8,.2,1) both}
 @keyframes slideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 .stagger>*{animation:slideIn .4s cubic-bezier(.2,.8,.2,1) both}
 .stagger>*:nth-child(2){animation-delay:.08s}.stagger>*:nth-child(3){animation-delay:.16s}
 
-/* Nouveau Design de Carte avec Miniature */
 .card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:16px;position:relative;overflow:hidden; border:1px solid rgba(255,255,255,0.6);}
 .card.past{background:#f8fafc; opacity:0.9;}
 .card-flex{display:flex; gap:16px; align-items:flex-start;}
@@ -60,12 +56,12 @@ main::-webkit-scrollbar{width:0}
 .event-info { flex: 1; min-width: 0; }
 .badge{display:inline-flex;align-items:center;gap:6px;background:#e8efff;color:var(--blue);font-size:12px;font-weight:800; padding:6px 12px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em; margin-bottom:8px;}
 .badge.gray{background:#e2e8f0;color:#475569}
+.badge.green{background:#dcfce7;color:#15803d}
 .card h3{font-size:19px;font-weight:800;margin:0 0 8px;line-height:1.25; color:var(--text);}
 .meta{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:13px;font-weight:600}
 .desc{margin-top:14px;background:#f8fafc;border-radius:14px;padding:12px 14px;font-size:14px;color:#334155;line-height:1.5; border:1px solid var(--line);}
 .registered-stripe{position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--green)}
 
-/* Boutons */
 .btn{width:100%;padding:16px;border-radius:16px;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px; position:relative;overflow:hidden;transition:all .2s cubic-bezier(0.2,0.8,0.2,1); cursor:pointer;}
 .btn:active{transform:scale(.96)}
 .btn-primary{background:linear-gradient(135deg,var(--blue),var(--navy-2));color:#fff; box-shadow:0 8px 20px rgba(37,99,235,0.25);}
@@ -75,7 +71,6 @@ main::-webkit-scrollbar{width:0}
 .btn-danger{background:#fee2e2;color:var(--red)}
 .icon-action{background:#f1f5f9; color:var(--muted); width:36px; height:36px; border-radius:12px; display:grid; place-items:center; font-size:18px;}
 
-/* Formulaires */
 .form-card{background:#fff;border-radius:var(--radius);padding:24px;box-shadow:var(--shadow); margin-bottom:20px;}
 .field{margin-bottom:16px}
 .field label{display:block;font-size:12px;font-weight:800;color:var(--muted);margin:0 0 8px 4px;text-transform:uppercase; letter-spacing:0.03em;}
@@ -87,7 +82,6 @@ main::-webkit-scrollbar{width:0}
 .seg label{margin:0;text-align:center;padding:14px;border-radius:14px;background:#f8fafc;font-size:15px;font-weight:800;color:var(--muted); cursor:pointer; border:2px solid #e2e8f0; transition:0.2s;}
 .seg input:checked+label{background:#e8efff;color:var(--blue); border-color:var(--blue);}
 
-/* UI Diverse */
 .hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:30px}
 .hero-icon{width:100px;height:100px;border-radius:32px;background:linear-gradient(135deg,#e8efff,#fff);display:grid;place-items:center; font-size:48px;color:var(--blue);box-shadow:var(--shadow);margin-bottom:24px;}
 .hero h2{font-size:28px;font-weight:800;margin-bottom:10px; color:var(--navy);}
@@ -98,7 +92,6 @@ nav{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-botto
 nav button{flex:1;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px; font-weight:800;color:var(--muted);transition:all .3s cubic-bezier(0.2,0.8,0.2,1);}
 nav button.active{background:linear-gradient(135deg,#e8efff,#f3f7ff);color:var(--blue); transform:translateY(-2px);}
 nav button.active i{transform:scale(1.15)}
-nav .count{position:absolute;top:6px;right:calc(50% - 28px);background:var(--red);color:#fff;border-radius:99px;font-size:10px;padding:2px 6px; border:2px solid #fff;}
 
 .profile{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px; background:#fff; padding:16px; border-radius:24px; box-shadow:var(--shadow-sm);}
 .profile h2{font-size:20px;font-weight:800; color:var(--navy);}
@@ -114,22 +107,10 @@ nav .count{position:absolute;top:6px;right:calc(50% - 28px);background:var(--red
 .inscrits-chip{display:flex;justify-content:space-between;align-items:center;background:#eef3ff;border-radius:16px;padding:14px 16px;margin-top:16px; font-weight:800;color:var(--navy);cursor:pointer; transition:0.2s;}
 .inscrits-chip:active{background:#e0e7ff; transform:scale(0.98);}
 
-/* Overlay Appel Plein Ecran */
-#appel-overlay {
-    position: fixed; inset: 0; z-index: 9999; background: #f4f7fb;
-    display: none; flex-direction: column;
-    animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+#appel-overlay { position: fixed; inset: 0; z-index: 9999; background: #f4f7fb; display: none; flex-direction: column; animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: none; } }
-.appel-header {
-    background: var(--navy); color: #fff; padding: calc(env(safe-area-inset-top) + 16px) 20px 16px;
-    display: flex; justify-content: space-between; align-items: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 10;
-}
-.btn-close-appel {
-    background: #ef4444; color: #fff; font-weight: 800; font-size: 14px;
-    padding: 10px 18px; border-radius: 14px; display: flex; align-items: center; gap: 8px; box-shadow:0 4px 12px rgba(239,68,68,0.3);
-}
+.appel-header { background: var(--navy); color: #fff; padding: calc(env(safe-area-inset-top) + 16px) 20px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 10; }
+.btn-close-appel { background: #ef4444; color: #fff; font-weight: 800; font-size: 14px; padding: 10px 18px; border-radius: 14px; display: flex; align-items: center; gap: 8px; box-shadow:0 4px 12px rgba(239,68,68,0.3); }
 #appel-frame { flex: 1; width: 100%; border: none; background: #fff; }
 
 #toasts{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 80px);display:flex;flex-direction:column;align-items:center;gap:10px;z-index:100;pointer-events:none}
@@ -156,7 +137,6 @@ nav .count{position:absolute;top:6px;right:calc(50% - 28px);background:var(--red
   <div id="toasts"></div>
 </div>
 
-<!-- L'OVERLAY PLEIN ÉCRAN POUR L'APPEL -->
 <div id="appel-overlay">
     <div class="appel-header">
         <div style="display:flex; align-items:center; gap:10px;">
@@ -169,7 +149,6 @@ nav .count{position:absolute;top:6px;right:calc(50% - 28px);background:var(--red
             <i class="ph-bold ph-x"></i> Quitter
         </button>
     </div>
-    <!-- L'iframe pointe désormais sur votre vraie URL -->
     <iframe id="appel-frame" src="https://rouillacc.github.io/appel/"></iframe>
 </div>
 
@@ -197,14 +176,20 @@ const dref = (name, id) => doc(db, 'artifacts', 'as-claudie-haignere', 'public',
 
 const S = {
   view: 'loading', tab: 'upcoming', user: null, profile: null, isAdmin: false,
-  events: [], inscriptions: [], users: [], unsubs: [], detailId: null
+  events: [], inscriptions: [], users: [], unsubs: [], detailId: null, editId: null
 };
 
 const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');
 const $head = document.getElementById('header-actions'); 
 
-// Outils
+// Date du jour pour l'archivage automatique
+const getTodayString = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+};
+
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtDate = (d) => {
     let dateObj = d.includes('/') ? new Date(`${d.split('/')[2]}-${d.split('/')[1]}-${d.split('/')[0]}T00:00:00`) : new Date(d + 'T00:00:00');
@@ -212,10 +197,19 @@ const fmtDate = (d) => {
 };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const countFor = (id) => S.inscriptions.filter(i => i.eventId === id).length;
-const upcomingEvents = () => S.events.filter(e => !e.isPast).sort((a,b) => a.date.localeCompare(b.date));
-const pastEvents = () => S.events.filter(e => e.isPast).sort((a,b) => b.date.localeCompare(a.date));
 
-// 🔥 INTELLIGENCE ARTIFICIELLE : Attribution des miniatures
+// AUTOMATISATION : On compare la date de l'événement avec la date du jour
+const upcomingEvents = () => {
+    const today = getTodayString();
+    return S.events.filter(e => e.date >= today && !e.isPast).sort((a,b) => a.date.localeCompare(b.date));
+};
+const pastEvents = () => {
+    const today = getTodayString();
+    return S.events.filter(e => e.date < today || e.isPast).sort((a,b) => b.date.localeCompare(a.date));
+};
+// GALERIE: Seulement les événements passés qui ont un lien Edunuage
+const galleryEvents = () => pastEvents().filter(e => e.edunuageLink && e.edunuageLink.trim() !== '');
+
 function getEventTheme(titre, desc = '') {
     const text = (titre + ' ' + desc).toLowerCase();
     if (text.includes('futsal') || text.includes('foot')) return { emoji: '⚽', color: 'linear-gradient(135deg, #10b981, #059669)' };
@@ -230,8 +224,6 @@ function getEventTheme(titre, desc = '') {
     if (text.includes('volley') || text.includes('beach')) return { emoji: '🏐', color: 'linear-gradient(135deg, #eab308, #ca8a04)' };
     if (text.includes('flag') || text.includes('ultimate')) return { emoji: '🥏', color: 'linear-gradient(135deg, #14b8a6, #0d9488)' };
     if (text.includes('gym')) return { emoji: '🤸', color: 'linear-gradient(135deg, #d946ef, #c026d3)' };
-    
-    // Par défaut : Coupe
     return { emoji: '🏆', color: 'linear-gradient(135deg, var(--blue), var(--navy-2))' };
 }
 
@@ -244,13 +236,8 @@ window.toast = function(msg, type = 'success') {
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 2800);
 }
 
-// GESTION DU PLEIN ECRAN APPEL (IFRAME)
-window.closeAppelMode = function() {
-    document.getElementById('appel-overlay').style.display = 'none';
-}
-window.openAppelMode = function() {
-    document.getElementById('appel-overlay').style.display = 'flex';
-}
+window.closeAppelMode = function() { document.getElementById('appel-overlay').style.display = 'none'; }
+window.openAppelMode = function() { document.getElementById('appel-overlay').style.display = 'flex'; }
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -261,8 +248,9 @@ onAuthStateChanged(auth, async (user) => {
   }
   S.user = user;
   S.isAdmin = (user.email || '').toLowerCase() === ADMIN_EMAIL;
-  if (S.isAdmin) S.profile = { role:'admin', prenom:'Admin', nom:'EPS' };
-  else {
+  if (S.isAdmin) {
+      S.profile = { role:'admin', prenom:'Admin', nom:'EPS' };
+  } else {
       const snap = await getDoc(dref('utilisateurs', user.uid));
       S.profile = snap.data();
   }
@@ -289,7 +277,7 @@ function render() {
   $view.classList.toggle('no-nav', !S.user);
   $view.scrollTop = scroll;
   renderNav();
-  renderSheet(); // Admin uniquement
+  renderSheet();
 }
 
 function renderNav() {
@@ -297,7 +285,8 @@ function renderNav() {
   $nav.classList.remove('hidden');
   const items = S.isAdmin
     ? [['upcoming','ph-calendar-check','À venir'], ['appel','ph-clipboard-text','Appel'], ['new','ph-plus-circle','Créer'], ['archives','ph-archive','Archives']]
-    : [['upcoming','ph-calendar-check','À venir'], ['archives','ph-images','Archives']];
+    // ELÈVES : Remplacement des archives par "Galerie"
+    : [['upcoming','ph-calendar-check','À venir'], ['gallery','ph-images','Galerie Photos']];
   
   $nav.innerHTML = items.map(([id, ic, lb]) => `
     <button data-tab="${id}" class="${S.tab === id ? 'active' : ''}">
@@ -309,14 +298,31 @@ const profileHeader = () => `<div class="profile"><div><small style="color:var(-
 
 function studentCard(e) {
   const reg = S.inscriptions.some(i => i.id === `${e.id}_${S.user.uid}`);
-  const theme = getEventTheme(e.titre, e.description || ''); // Extraction du thème
+  const theme = getEventTheme(e.titre, e.description || '');
   
-  return `<div class="card ${e.isPast ? 'past' : ''}">
-    ${!e.isPast && reg ? '<div class="registered-stripe"></div>' : ''}
+  // Si on est dans la galerie, la carte devient un énorme bouton vers l'album
+  if (S.tab === 'gallery') {
+      return `<div class="card past">
+        <div class="card-flex">
+            <div class="event-thumb" style="background:${theme.color}">${theme.emoji}</div>
+            <div class="event-info">
+                <span class="badge gray"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
+                <h3>${esc(e.titre)}</h3>
+            </div>
+        </div>
+        <a class="btn btn-orange" href="${esc(e.edunuageLink)}" target="_blank" style="margin-top:16px; text-decoration:none;">
+           <i class="ph-bold ph-camera"></i> Voir l'album
+        </a>
+      </div>`;
+  }
+
+  // Carte normale (À venir)
+  return `<div class="card">
+    ${reg ? '<div class="registered-stripe"></div>' : ''}
     <div class="card-flex">
         <div class="event-thumb" style="background:${theme.color}">${theme.emoji}</div>
         <div class="event-info">
-            <span class="badge ${e.isPast ? 'gray' : ''}"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
+            <span class="badge"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
             <h3>${esc(e.titre)}</h3>
             <div class="meta">
               ${e.heure ? `<div><i class="ph-fill ph-clock"></i>RDV à ${esc(e.heure)}</div>` : ''}
@@ -325,31 +331,42 @@ function studentCard(e) {
         </div>
     </div>
     ${e.description ? `<div class="desc"><i class="ph-fill ph-info" style="color:var(--blue); vertical-align:-2px; margin-right:4px;"></i> ${esc(e.description)}</div>` : ''}
-    ${!e.isPast ? (reg ? `<button class="btn btn-success" data-a="unregister" data-id="${e.id}" style="margin-top:18px"><i class="ph-bold ph-check"></i> Inscrit · Me désinscrire</button>` : `<button class="btn btn-primary" data-a="register" data-id="${e.id}" style="margin-top:18px"><i class="ph-bold ph-hand-pointing"></i> M'inscrire</button>`) : ''}
+    ${reg ? `<button class="btn btn-success" data-a="unregister" data-id="${e.id}" style="margin-top:18px"><i class="ph-bold ph-check"></i> Inscrit · Me désinscrire</button>` : `<button class="btn btn-primary" data-a="register" data-id="${e.id}" style="margin-top:18px"><i class="ph-bold ph-hand-pointing"></i> M'inscrire</button>`}
   </div>`;
 }
 
 const vStudent = () => {
-  const list = S.tab === 'archives' ? pastEvents() : upcomingEvents();
-  return profileHeader() + `<div class="section-title"><i class="ph-fill ph-calendar-check" style="color:var(--blue)"></i>${S.tab === 'archives' ? 'Événements Passés' : 'Prochains Événements'}</div>` +
-    (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>` : `<div class="empty"><div style="font-size:40px; margin-bottom:10px;">😴</div>Aucun événement prévu.</div>`);
+  if (S.tab === 'gallery') {
+      const list = galleryEvents();
+      return profileHeader() + `<div class="section-title"><i class="ph-fill ph-images" style="color:var(--orange)"></i>Galerie Photos</div>` +
+        (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>` : `<div class="empty"><div style="font-size:40px; margin-bottom:10px;">📸</div>Aucun album photo disponible.</div>`);
+  } else {
+      const list = upcomingEvents();
+      return profileHeader() + `<div class="section-title"><i class="ph-fill ph-calendar-check" style="color:var(--blue)"></i>Prochaines Journées</div>` +
+        (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>` : `<div class="empty"><div style="font-size:40px; margin-bottom:10px;">😴</div>Aucun événement à venir.</div>`);
+  }
 };
 
 function adminCard(e) {
   const n = countFor(e.id);
-  const theme = getEventTheme(e.titre, e.description || ''); // Extraction du thème
+  const theme = getEventTheme(e.titre, e.description || '');
   
-  return `<div class="card ${e.isPast ? 'past' : ''}">
+  return `<div class="card ${e.isPast || e.date < getTodayString() ? 'past' : ''}">
     <div class="card-flex">
         <div class="event-thumb" style="background:${theme.color}; width:50px; height:50px; font-size:24px;">${theme.emoji}</div>
         <div class="event-info">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
-              <span class="badge ${e.isPast ? 'gray' : ''}"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
-              <button class="icon-action" style="background:#fee2e2;color:var(--red);" data-a="delete-event" data-id="${e.id}"><i class="ph-bold ph-trash"></i></button>
+              <span class="badge ${e.isPast || e.date < getTodayString() ? 'gray' : ''}"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
+              <div style="display:flex; gap:6px;">
+                  <!-- Bouton MODIFIER -->
+                  <button class="icon-action" style="background:#eef2fb;color:var(--blue);" data-a="edit-event" data-id="${e.id}"><i class="ph-bold ph-pencil-simple"></i></button>
+                  <button class="icon-action" style="background:#fee2e2;color:var(--red);" data-a="delete-event" data-id="${e.id}"><i class="ph-bold ph-trash"></i></button>
+              </div>
             </div>
             <h3>${esc(e.titre)}</h3>
             <div class="meta">
               <div><i class="ph-fill ph-map-pin"></i>${esc(e.lieu)}</div>
+              ${e.edunuageLink ? `<div style="color:var(--orange);"><i class="ph-bold ph-camera"></i> Photos attachées</div>` : ''}
             </div>
         </div>
     </div>
@@ -362,28 +379,46 @@ function adminCard(e) {
 
 const vAdmin = () => {
   const banner = `<div class="admin-banner"><i class="ph-fill ph-shield-star" style="font-size:26px"></i>Espace professeur · EPS</div>`;
-  if (S.tab === 'new') return banner + `
-    <div class="form-card" style="margin-bottom:20px;">
-      <h2 style="font-size:20px;font-weight:800;margin-bottom:12px; color:var(--navy);"><i class="ph-fill ph-cloud-arrow-down" style="color:var(--green)"></i> Synchro District</h2>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:16px; font-weight:600;">Importation automatique depuis le calendrier Excel/Sheets du district.</p>
-      <div class="field">
-        <input class="input" id="g-sheet-url" type="url" placeholder="https://docs.google.com/spreadsheets/..." value="${localStorage.getItem('as_sheet_url')||''}">
-      </div>
-      <button class="btn btn-success" id="btn-import-sheet"><i class="ph-bold ph-arrows-clockwise"></i> Mettre à jour le calendrier</button>
-    </div>
-    <div class="form-card"><h2 style="font-size:20px;font-weight:800;margin-bottom:20px; color:var(--navy);"><i class="ph-fill ph-plus-circle" style="color:var(--blue)"></i> Création Manuelle</h2>
-      <form id="event-form">
-        <div class="field"><label>Titre de l'événement</label><input class="input" id="e-titre" required placeholder="Ex: Cross départemental"></div>
-        <div class="grid2"><div class="field"><label>Date</label><input class="input" id="e-date" type="date" required></div><div class="field"><label>Heure RDV</label><input class="input" id="e-heure" type="time"></div></div>
-        <div class="field"><label>Lieu</label><input class="input" id="e-lieu" required placeholder="Ex: Stade Bécavin"></div>
-        <div class="field"><label>Informations Complémentaires</label><textarea class="input" id="e-desc" rows="3" placeholder="Tenue de rechange, pique-nique..."></textarea></div>
-        <button class="btn btn-primary" type="submit" style="margin-top:12px">Ajouter au calendrier <i class="ph-bold ph-arrow-right"></i></button>
-      </form>
-    </div>`;
+  
+  if (S.tab === 'new') {
+      const isEditing = !!S.editId;
+      return banner + `
+        ${!isEditing ? `
+        <div class="form-card" style="margin-bottom:20px;">
+          <h2 style="font-size:20px;font-weight:800;margin-bottom:12px; color:var(--navy);"><i class="ph-fill ph-cloud-arrow-down" style="color:var(--green)"></i> Synchro District</h2>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:16px; font-weight:600;">Importation depuis le calendrier Sheets du district.</p>
+          <div class="field">
+            <input class="input" id="g-sheet-url" type="url" placeholder="https://docs.google.com/spreadsheets/..." value="${localStorage.getItem('as_sheet_url')||''}">
+          </div>
+          <button class="btn btn-success" id="btn-import-sheet"><i class="ph-bold ph-arrows-clockwise"></i> Mettre à jour le calendrier</button>
+        </div>` : ''}
+        
+        <div class="form-card">
+          <h2 style="font-size:20px;font-weight:800;margin-bottom:20px; color:var(--navy);">
+              ${isEditing ? `<i class="ph-fill ph-pencil-simple" style="color:var(--orange)"></i> Modifier l'événement` : `<i class="ph-fill ph-plus-circle" style="color:var(--blue)"></i> Création Manuelle`}
+          </h2>
+          <form id="event-form">
+            <div class="field"><label>Titre de l'événement</label><input class="input" id="e-titre" required placeholder="Ex: Cross départemental"></div>
+            <div class="grid2"><div class="field"><label>Date</label><input class="input" id="e-date" type="date" required></div><div class="field"><label>Heure RDV</label><input class="input" id="e-heure" type="time"></div></div>
+            <div class="field"><label>Lieu</label><input class="input" id="e-lieu" required placeholder="Ex: Stade Bécavin"></div>
+            <div class="field"><label>Lien Edunuage (Galerie Photos)</label><input class="input" id="e-link" type="url" placeholder="https://edunuage.ac-poitiers.fr/..."></div>
+            <div class="field"><label>Informations Complémentaires</label><textarea class="input" id="e-desc" rows="3" placeholder="Tenue de rechange, pique-nique..."></textarea></div>
+            
+            ${isEditing ? `
+                <div class="grid2" style="margin-top:20px;">
+                    <button class="btn btn-ghost" type="button" onclick="S.editId=null; S.tab='upcoming'; render();">Annuler</button>
+                    <button class="btn btn-orange" type="submit">Modifier <i class="ph-bold ph-check"></i></button>
+                </div>
+            ` : `
+                <button class="btn btn-primary" type="submit" style="margin-top:12px">Ajouter au calendrier <i class="ph-bold ph-arrow-right"></i></button>
+            `}
+          </form>
+        </div>`;
+  }
 
   const list = S.tab === 'archives' ? pastEvents() : upcomingEvents();
   return banner + `<div class="stats"><div class="stat"><b>${upcomingEvents().length}</b><span>À venir</span></div><div class="stat"><b>${S.users.filter(u=>u.role!=='admin').length}</b><span>Licenciés</span></div></div>` +
-    `<div class="section-title">${S.tab === 'archives' ? '<i class="ph-fill ph-archive" style="color:var(--orange)"></i> Événements Passés' : '<i class="ph-fill ph-calendar-check" style="color:var(--blue)"></i> Prochaines Journées'}</div>` +
+    `<div class="section-title">${S.tab === 'archives' ? '<i class="ph-fill ph-archive" style="color:var(--orange)"></i> Archives (Passés)' : '<i class="ph-fill ph-calendar-check" style="color:var(--blue)"></i> Prochaines Journées'}</div>` +
     (list.length ? `<div class="stagger">${list.map(adminCard).join('')}</div>` : `<div class="empty"><div style="font-size:40px; margin-bottom:10px;">📅</div>Aucun événement.</div>`);
 };
 
@@ -418,7 +453,7 @@ function renderSheet() {
           </div>`).join('')}
           ${people.length === 0 ? `<div class="empty"><i class="ph ph-user-circle-dashed"></i>Aucun inscrit.</div>` : ''}
           <div style="margin-top:24px;">
-            <button class="btn ${e.isPast ? 'btn-ghost' : 'btn-orange'}" data-a="toggle-past" data-id="${e.id}"><i class="ph-bold ${e.isPast ? 'ph-arrow-counter-clockwise' : 'ph-archive'}"></i> ${e.isPast ? 'Remettre dans À venir' : 'Archiver l\'événement'}</button>
+            <button class="btn ${e.isPast ? 'btn-ghost' : 'btn-orange'}" data-a="toggle-past" data-id="${e.id}"><i class="ph-bold ${e.isPast ? 'ph-arrow-counter-clockwise' : 'ph-archive'}"></i> ${e.isPast ? 'Désarchiver (Forcer dans À venir)' : 'Archiver manuellement'}</button>
           </div>
       </div>
     </div>`;
@@ -426,12 +461,15 @@ function renderSheet() {
   else document.getElementById('shell').insertAdjacentHTML('beforeend', html);
 }
 
-// Logique de clics (Délégation)
 document.addEventListener('click', async (ev) => {
   const tabBtn = ev.target.closest('[data-tab]');
   if(tabBtn) {
       if(tabBtn.dataset.tab === 'appel') { openAppelMode(); } 
-      else { S.tab = tabBtn.dataset.tab; try{render()}catch(e){} }
+      else { 
+          S.tab = tabBtn.dataset.tab; 
+          if(S.tab !== 'new') S.editId = null; // On annule l'édition si on change d'onglet
+          try{render()}catch(e){} 
+      }
   }
   
   const btn = ev.target.closest('[data-a]');
@@ -439,6 +477,27 @@ document.addEventListener('click', async (ev) => {
       const a = btn.dataset.a, id = btn.dataset.id;
       if(a === 'close-detail') { S.detailId = null; try{render()}catch(e){} }
       if(a === 'open-detail') { S.detailId = id; try{render()}catch(e){} }
+      
+      // ADMIN : Modifier
+      if(a === 'edit-event') {
+          const evtToEdit = S.events.find(x => x.id === id);
+          if (evtToEdit) {
+              S.editId = id;
+              S.tab = 'new';
+              try{render()}catch(e){}
+              
+              // On remplit le formulaire après un court délai pour laisser le DOM s'afficher
+              setTimeout(() => {
+                  if(document.getElementById('e-titre')) document.getElementById('e-titre').value = evtToEdit.titre || '';
+                  if(document.getElementById('e-date')) document.getElementById('e-date').value = evtToEdit.date || '';
+                  if(document.getElementById('e-heure')) document.getElementById('e-heure').value = evtToEdit.heure || '';
+                  if(document.getElementById('e-lieu')) document.getElementById('e-lieu').value = evtToEdit.lieu || '';
+                  if(document.getElementById('e-desc')) document.getElementById('e-desc').value = evtToEdit.description || '';
+                  if(document.getElementById('e-link')) document.getElementById('e-link').value = evtToEdit.edunuageLink || '';
+              }, 50);
+          }
+      }
+      
       if(a === 'register' || a === 'unregister') {
           btn.innerHTML = '<span class="spin"></span>';
           const docId = `${id}_${S.user.uid}`;
@@ -446,8 +505,10 @@ document.addEventListener('click', async (ev) => {
           else await deleteDoc(dref('inscriptions', docId));
       }
       if(a === 'delete-event') {
-          await deleteDoc(dref('evenements', id));
-          S.detailId = null; toast('Supprimé avec succès');
+          if (confirm("Supprimer définitivement cet événement ?")) {
+              await deleteDoc(dref('evenements', id));
+              S.detailId = null; toast('Supprimé avec succès');
+          }
       }
       if(a === 'toggle-past') {
           const e = S.events.find(x => x.id === id);
@@ -520,10 +581,10 @@ document.addEventListener('click', async (ev) => {
   }
 });
 
-// FORMULAIRES DE CONNEXION / CRÉATION
 document.addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const form = ev.target, btn = form.querySelector('button[type="submit"]');
+  const initialBtnHTML = btn.innerHTML;
   btn.innerHTML = '<span class="spin"></span>';
   try {
     if (form.id === 'login-form') {
@@ -542,16 +603,35 @@ document.addEventListener('submit', async (ev) => {
       toast(`Bienvenue ${data.prenom} !`);
     }
     if (form.id === 'event-form') {
-      await addDoc(col('evenements'), {
-        titre: document.getElementById('e-titre').value.trim(), date: document.getElementById('e-date').value,
-        heure: document.getElementById('e-heure').value, lieu: document.getElementById('e-lieu').value.trim(),
-        description: document.getElementById('e-desc').value.trim(), places: 0, isPast: false, createdAt: Date.now()
-      });
-      form.reset(); toast('Événement ajouté avec succès !');
-      S.tab = 'upcoming'; try{render()}catch(e){}
+      const eventData = {
+        titre: document.getElementById('e-titre').value.trim(), 
+        date: document.getElementById('e-date').value,
+        heure: document.getElementById('e-heure').value, 
+        lieu: document.getElementById('e-lieu').value.trim(),
+        description: document.getElementById('e-desc').value.trim(), 
+        edunuageLink: document.getElementById('e-link') ? document.getElementById('e-link').value.trim() : ''
+      };
+
+      if (S.editId) {
+          // Mise à jour
+          await updateDoc(dref('evenements', S.editId), eventData);
+          toast('Événement modifié !');
+          S.editId = null;
+      } else {
+          // Création
+          eventData.places = 0; 
+          eventData.isPast = false; 
+          eventData.createdAt = Date.now();
+          await addDoc(col('evenements'), eventData);
+          toast('Événement ajouté !');
+      }
+      
+      form.reset(); 
+      S.tab = 'upcoming'; 
+      try{render()}catch(e){}
     }
   } catch (err) {
-    btn.innerHTML = 'Erreur, réessayer';
+    btn.innerHTML = initialBtnHTML;
     toast(err.code === 'auth/invalid-credential' ? 'Identifiants incorrects' : 'Une erreur est survenue', 'error');
   }
 });
