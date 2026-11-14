@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b2a6f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AS Collège Claudie Haigneré</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b2a6f'/%3E%3Ccircle cx='50' cy='50' r='26' fill='%23ff7a1a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+<style>
+/* =====================================================================
+   DESIGN SYSTEM
+   ===================================================================== */
+:root{
+  --navy:#0b2a6f; --navy-2:#143d9e; --blue:#2563eb; --orange:#ff7a1a; --orange-2:#ff9a4d;
+  --green:#16a34a; --red:#dc2626; --bg:#eef2f9; --card:#ffffff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --radius:20px; --shadow:0 8px 24px rgba(15,35,95,.08); --shadow-sm:0 2px 8px rgba(15,35,95,.06);
+  --nav-h:68px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;
+  display:flex;justify-content:center}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+
+/* Conteneur "téléphone" (centré sur desktop) */
+#shell{width:100%;max-width:480px;height:100dvh;display:flex;flex-direction:column;background:var(--bg);
+  position:relative;overflow:hidden;box-shadow:0 0 60px rgba(15,35,95,.15)}
+
+/* En-tête */
+header{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;padding:calc(env(safe-area-inset-top) + 14px) 18px 18px;
+  border-radius:0 0 28px 28px;box-shadow:0 8px 24px rgba(11,42,111,.35);z-index:10;flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-logo{width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.15);display:grid;place-items:center;
+  font-size:26px;color:var(--orange-2);backdrop-filter:blur(6px)}
+.brand h1{font-size:15px;font-weight:800;line-height:1.15;letter-spacing:.04em;text-transform:uppercase}
+.brand h1 span{color:#bcd0ff;font-weight:600}
+.icon-btn{width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;font-size:20px;
+  display:grid;place-items:center;position:relative;overflow:hidden}
+
+/* Zone principale */
+main{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px 16px calc(var(--nav-h) + 28px);scroll-behavior:smooth}
+main.no-nav{padding-bottom:28px}
+main::-webkit-scrollbar{width:0}
+
+/* Écrans / transitions */
+.screen{animation:slideIn .35s cubic-bezier(.2,.8,.2,1) both}
+@keyframes slideIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.stagger>*{animation:slideIn .4s cubic-bezier(.2,.8,.2,1) both}
+.stagger>*:nth-child(2){animation-delay:.05s}.stagger>*:nth-child(3){animation-delay:.1s}
+.stagger>*:nth-child(4){animation-delay:.15s}.stagger>*:nth-child(5){animation-delay:.2s}
+
+/* Cartes */
+.card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px;position:relative;overflow:hidden}
+.card.past{background:#f8fafc}
+.badge{display:inline-flex;align-items:center;gap:6px;background:#e8efff;color:var(--blue);font-size:12px;font-weight:700;
+  padding:5px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em}
+.badge.orange{background:#fff1e4;color:#d95f00}.badge.green{background:#dcfce7;color:#15803d}.badge.gray{background:#e2e8f0;color:#475569}
+.card h3{font-size:19px;font-weight:800;margin:10px 0 8px;line-height:1.2}
+.meta{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:14px;font-weight:500}
+.meta i{color:var(--navy-2);font-size:17px;margin-right:6px;vertical-align:-3px}
+.desc{margin-top:12px;background:#f4f7fd;border-radius:14px;padding:12px;font-size:14px;color:#334155;line-height:1.45}
+.registered-stripe{position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--green)}
+
+/* Jauge */
+.gauge{margin-top:14px}
+.gauge-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px}
+.gauge-bar{height:10px;border-radius:99px;background:#e6ecf7;overflow:hidden}
+.gauge-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),#38bdf8);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.gauge-fill.warn{background:linear-gradient(90deg,var(--orange),var(--orange-2))}
+.gauge-fill.full{background:linear-gradient(90deg,var(--red),#f87171)}
+
+/* Boutons */
+.btn{width:100%;padding:16px;border-radius:16px;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;
+  position:relative;overflow:hidden;transition:transform .12s,box-shadow .2s,opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.55;pointer-events:none}
+.btn-primary{background:linear-gradient(135deg,var(--blue),var(--navy-2));color:#fff;box-shadow:0 8px 20px rgba(37,99,235,.35)}
+.btn-orange{background:linear-gradient(135deg,var(--orange),var(--orange-2));color:#fff;box-shadow:0 8px 20px rgba(255,122,26,.35)}
+.btn-success{background:#e8f9ee;color:#15803d;border:2px solid var(--green)}
+.btn-dark{background:var(--text);color:#fff}
+.btn-ghost{background:#eef2fb;color:var(--navy-2)}
+.btn-danger{background:#fee2e2;color:var(--red)}
+.btn-full{background:#e2e8f0;color:#64748b}
+.btn-sm{padding:11px 14px;font-size:14px;border-radius:13px;width:auto}
+.btn-row{display:flex;gap:10px;margin-top:14px}
+.btn-row .btn{flex:1}
+
+/* Ripple */
+.ripple-fx{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:ripple .6s linear;pointer-events:none}
+.btn-ghost .ripple-fx,.btn-success .ripple-fx,.btn-danger .ripple-fx,.btn-full .ripple-fx{background:rgba(37,99,235,.2)}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+
+/* Formulaires */
+.form-card{background:#fff;border-radius:24px;padding:22px;box-shadow:var(--shadow)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 6px 4px;text-transform:uppercase;letter-spacing:.04em}
+.input{width:100%;background:#f4f7fd;border:2px solid transparent;border-radius:14px;padding:14px;font-size:16px;transition:.2s}
+.input:focus{outline:none;background:#fff;border-color:var(--blue);box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+textarea.input{resize:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg input{display:none}
+.seg label{margin:0;text-align:center;padding:13px;border-radius:14px;background:#f4f7fd;font-size:15px;font-weight:700;color:var(--muted);
+  cursor:pointer;transition:.2s;border:2px solid transparent;text-transform:none;letter-spacing:0}
+.seg input:checked+label{background:#e8efff;color:var(--blue);border-color:var(--blue)}
+
+/* Écran code / hero */
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:26px}
+.hero-icon{width:96px;height:96px;border-radius:30px;background:linear-gradient(135deg,#e8efff,#fff);display:grid;place-items:center;
+  font-size:46px;color:var(--blue);box-shadow:var(--shadow);margin-bottom:22px;animation:float 3s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-8px)}}
+.hero h2{font-size:26px;font-weight:800;margin-bottom:8px}
+.hero p{color:var(--muted);font-size:14px;max-width:280px;line-height:1.5;margin-bottom:26px}
+.code-input{text-align:center;font-weight:800;font-size:20px;letter-spacing:.12em}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.link{color:var(--blue);font-weight:700;font-size:14px;padding:10px}
+
+/* Bottom nav */
+nav{position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 12px);height:var(--nav-h);background:#fff;border-radius:24px;
+  box-shadow:0 10px 30px rgba(11,42,111,.2);display:flex;padding:8px;z-index:20}
+nav button{flex:1;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;
+  font-weight:700;color:var(--muted);position:relative;overflow:hidden;transition:.25s}
+nav button i{font-size:24px;transition:.25s}
+nav button.active{background:linear-gradient(135deg,#e8efff,#f3f7ff);color:var(--blue)}
+nav button.active i{transform:translateY(-1px) scale(1.1)}
+nav .count{position:absolute;top:6px;right:calc(50% - 26px);background:var(--orange);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px}
+
+/* Profil */
+.profile{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.profile small{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.profile h2{font-size:21px;font-weight:800}
+.avatar{width:50px;height:50px;border-radius:18px;background:linear-gradient(135deg,var(--orange),var(--orange-2));color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px}
+.section-title{font-size:18px;font-weight:800;margin:6px 4px 12px;display:flex;align-items:center;gap:8px}
+.empty{text-align:center;color:var(--muted);padding:34px 16px;background:rgba(255,255,255,.6);border:2px dashed var(--line);border-radius:var(--radius);font-weight:500}
+.empty i{display:block;font-size:40px;color:#cbd5e1;margin-bottom:8px}
+
+/* Admin */
+.admin-banner{background:linear-gradient(135deg,#fff1e4,#ffe2c8);color:#b34700;border-radius:16px;padding:12px 14px;font-weight:700;font-size:14px;
+  display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:#fff;border-radius:18px;padding:14px 8px;text-align:center;box-shadow:var(--shadow-sm)}
+.stat b{display:block;font-size:24px;font-weight:800;color:var(--navy-2)}
+.stat span{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.inscrits-chip{display:flex;justify-content:space-between;align-items:center;background:#eef3ff;border-radius:14px;padding:12px 14px;margin-top:14px;
+  font-weight:700;color:var(--navy);cursor:pointer;position:relative;overflow:hidden}
+.inscrits-chip b{font-size:18px}
+
+/* Détail événement (feuille plein écran) */
+.sheet{position:absolute;inset:0;background:var(--bg);z-index:30;display:flex;flex-direction:column;animation:sheetIn .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes sheetIn{from{transform:translateY(100%)}to{transform:none}}
+.sheet-head{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;padding:calc(env(safe-area-inset-top) + 14px) 18px 20px;
+  border-radius:0 0 28px 28px;display:flex;gap:12px;align-items:center}
+.sheet-head h2{font-size:18px;font-weight:800;line-height:1.2}
+.sheet-head p{font-size:13px;color:#c5d6ff}
+.sheet-body{flex:1;overflow-y:auto;padding:18px 16px 30px}
+.person{display:flex;align-items:center;gap:12px;background:#fff;border-radius:18px;padding:12px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+.sexe{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-weight:800;color:#fff;flex-shrink:0}
+.sexe.F{background:linear-gradient(135deg,#ec4899,#f472b6)}.sexe.G{background:linear-gradient(135deg,#2563eb,#60a5fa)}
+.person-info{flex:1;min-width:0}
+.person-info b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person-info span{font-size:13px;color:var(--muted);font-weight:500}
+.call{width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,var(--green),#4ade80);color:#fff;display:grid;place-items:center;
+  font-size:22px;text-decoration:none;box-shadow:0 6px 14px rgba(22,163,74,.35);flex-shrink:0}
+.call.disabled{background:#cbd5e1;box-shadow:none;pointer-events:none}
+.tel-txt{display:block;font-size:12px;color:var(--navy-2);font-weight:700;margin-top:2px}
+
+/* Toast */
+#toasts{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 78px);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:100;pointer-events:none}
+.toast{background:#0f172a;color:#fff;padding:13px 18px;border-radius:16px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px;
+  box-shadow:0 14px 30px rgba(0,0,0,.28);max-width:88%;animation:toastIn .35s cubic-bezier(.2,.8,.2,1)}
+.toast.out{animation:toastOut .3s forwards}
+.toast i{font-size:22px}.toast.success i{color:#4ade80}.toast.error i{color:#f87171}.toast.info i{color:#60a5fa}
+@keyframes toastIn{from{opacity:0;transform:translateY(-20px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-14px) scale(.95)}}
+
+/* Modale de confirmation */
+.modal-bg{position:absolute;inset:0;background:rgba(15,23,42,.55);z-index:90;display:grid;place-items:center;padding:24px;animation:fade .2s;backdrop-filter:blur(3px)}
+.modal{background:#fff;border-radius:24px;padding:24px;width:100%;animation:slideIn .3s}
+.modal h3{font-size:19px;font-weight:800;margin-bottom:8px}.modal p{color:var(--muted);font-size:14px;line-height:1.5}
+@keyframes fade{from{opacity:0}}
+
+/* Splash */
+.splash{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:12px;font-weight:600}
+.spin{width:44px;height:44px;border:4px solid #dbe5fb;border-top-color:var(--blue);border-radius:50%;animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.btn .spin{width:20px;height:20px;border-width:3px;border-color:rgba(255,255,255,.4);border-top-color:#fff}
+.hidden{display:none!important}
+</style>
+</head>
+
+<body>
+<div id="shell">
+  <header>
+    <div class="brand">
+      <div class="brand-logo"><i class="ph-fill ph-person-simple-run"></i></div>
+      <h1>AS Claudie<br><span>Haigneré</span></h1>
+    </div>
+    <div id="header-actions"></div>
+  </header>
+
+  <main id="view"></main>
+  <nav id="nav" class="hidden"></nav>
+  <div id="toasts"></div>
+  <div id="overlay"></div>
+</div>
+
+<script type="module">
+/* =====================================================================
+   1. FIREBASE  (SDK v9 modulaire)
+   ===================================================================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch, query, where, getDocs }
+  from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB475MQ5DD_xXZlVHKDbcrPcciLSr7FGto",
+  authDomain: "cdm-rouillac.firebaseapp.com",
+  projectId: "cdm-rouillac",
+  storageBucket: "cdm-rouillac.firebasestorage.app",
+  messagingSenderId: "650773834321",
+  appId: "1:650773834321:web:a9c5a348f65fcf46b82670"
+};
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
+
+/* Constantes de l'application */
+const ADMIN_EMAIL = 'epsclaudie@gmail.com';
+const ACCESS_CODE = 'Rouillac16';
+/* Chemin des données : identique à la version précédente (les données existantes sont conservées) */
+const DATA_ROOT = 'as-claudie-haignere';
+const col  = (name)     => collection(db, 'artifacts', DATA_ROOT, 'public', 'data', name);
+const dref = (name, id) => doc(db, 'artifacts', DATA_ROOT, 'public', 'data', name, id);
+
+/* =====================================================================
+   2. ÉTAT
+   ===================================================================== */
+const S = {
+  view: 'loading',        // loading | guard | login | register | student | admin
+  tab: 'upcoming',        // élève : upcoming | archives ; admin : upcoming | archives | new
+  detailId: null,         // admin : événement ouvert
+  user: null, profile: null, isAdmin: false,
+  events: [], inscriptions: [], users: [],
+  unsubs: [], registering: false, busy: new Set()
+};
+
+const $view = document.getElementById('view');
+const $nav = document.getElementById('nav');
+const $head = document.getElementById('header-actions');
+const $overlay = document.getElementById('overlay');
+let lastKey = '';
+
+/* =====================================================================
+   3. OUTILS
+   ===================================================================== */
+/* Échappe le HTML : toute donnée saisie par un utilisateur passe par ici (anti-XSS) */
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl = (u) => { try { const x = new URL(u); return ['http:','https:'].includes(x.protocol) ? x.href : ''; } catch { return ''; } };
+const telHref = (t) => String(t || '').replace(/[^\d+]/g, '');
+const fmtDate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const countFor = (eventId) => S.inscriptions.filter(i => i.eventId === eventId).length;
+const upcomingEvents = () => S.events.filter(e => !e.isPast).sort((a,b) => (a.date+(a.heure||'')).localeCompare(b.date+(b.heure||'')));
+const pastEvents = () => S.events.filter(e => e.isPast).sort((a,b) => b.date.localeCompare(a.date));
+
+/* Toasts */
+function toast(msg, type = 'success') {
+  const icons = { success:'ph-check-circle', error:'ph-warning-circle', info:'ph-info' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<i class="ph-fill ${icons[type]}"></i><span>${esc(msg)}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 2800);
+}
+
+/* Modale de confirmation (remplace confirm()) */
+function confirmModal(title, text, okLabel = 'Confirmer') {
+  return new Promise(resolve => {
+    $overlay.innerHTML = `
+      <div class="modal-bg"><div class="modal">
+        <h3>${esc(title)}</h3><p>${esc(text)}</p>
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-m="no">Annuler</button>
+          <button class="btn btn-danger" data-m="yes">${esc(okLabel)}</button>
+        </div></div></div>`;
+    $overlay.onclick = (e) => {
+      const b = e.target.closest('[data-m]');
+      if (!b && !e.target.classList.contains('modal-bg')) return;
+      $overlay.innerHTML = ''; $overlay.onclick = null;
+      resolve(b?.dataset.m === 'yes');
+    };
+  });
+}
+
+/* Effet ripple sur tout élément .ripple / .btn / nav button */
+document.addEventListener('pointerdown', (e) => {
+  const t = e.target.closest('.btn, nav button, .icon-btn, .inscrits-chip');
+  if (!t) return;
+  const r = t.getBoundingClientRect(), size = Math.max(r.width, r.height);
+  const s = document.createElement('span');
+  s.className = 'ripple-fx';
+  s.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - r.left - size/2}px;top:${e.clientY - r.top - size/2}px`;
+  t.appendChild(s); setTimeout(() => s.remove(), 600);
+});
+
+const setLoading = (btn, on, label) => {
+  if (!btn) return;
+  if (on) { btn.dataset.label = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true; }
+  else { btn.innerHTML = label ?? btn.dataset.label ?? btn.innerHTML; btn.disabled = false; }
+};
+
+/* =====================================================================
+   4. AUTHENTIFICATION & ÉCOUTE TEMPS RÉEL
+   ===================================================================== */
+onAuthStateChanged(auth, async (user) => {
+  if (S.registering) return;            // l'inscription gère elle-même la suite
+  if (!user) {
+    stopListeners();
+    Object.assign(S, { user:null, profile:null, isAdmin:false, detailId:null, tab:'upcoming' });
+    S.view = (S.view === 'login' || S.view === 'register') ? S.view : 'guard';
+    return render();
+  }
+  await enterApp(user);
+});
+
+async function enterApp(user) {
+  S.user = user;
+  S.isAdmin = (user.email || '').toLowerCase() === ADMIN_EMAIL;
+  S.tab = 'upcoming'; S.detailId = null;
+
+  if (S.isAdmin) {
+    S.profile = { role:'admin', prenom:'Admin', nom:'EPS' };
+  } else {
+    let snap = null;
+    for (let i = 0; i < 5; i++) {                       // petit délai si le profil est en cours d'écriture
+      snap = await getDoc(dref('utilisateurs', user.uid)).catch(() => null);
+      if (snap?.exists()) break;
+      await new Promise(r => setTimeout(r, 600));
+    }
+    if (!snap?.exists()) { toast('Profil introuvable, reconnecte-toi.', 'error'); await signOut(auth); return; }
+    S.profile = snap.data();
+  }
+  S.view = S.isAdmin ? 'admin' : 'student';
+  startListeners();
+  render();
+}
+
+function startListeners() {
+  stopListeners();
+  const onErr = (n) => (e) => { console.error(n, e); toast('Synchronisation impossible (' + n + ')', 'error'); };
+  S.unsubs.push(onSnapshot(col('evenements'),   s => { S.events = s.docs.map(d => ({id:d.id, ...d.data()})); render(); }, onErr('événements')));
+  S.unsubs.push(onSnapshot(col('inscriptions'), s => { S.inscriptions = s.docs.map(d => ({id:d.id, ...d.data()})); render(); }, onErr('inscriptions')));
+  if (S.isAdmin)
+    S.unsubs.push(onSnapshot(col('utilisateurs'), s => { S.users = s.docs.map(d => ({id:d.id, ...d.data()})); render(); }, onErr('utilisateurs')));
+}
+function stopListeners() { S.unsubs.forEach(u => u()); S.unsubs = []; S.events = []; S.inscriptions = []; S.users = []; }
+
+/* =====================================================================
+   5. RENDU
+   ===================================================================== */
+function render() {
+  // En-tête
+  $head.innerHTML = S.user ? `<button class="icon-btn" data-a="logout" aria-label="Déconnexion"><i class="ph-bold ph-sign-out"></i></button>` : '';
+
+  // Évite d'écraser les champs en cours de saisie (formulaires) lors d'une mise à jour temps réel
+  const formView = ['guard','login','register'].includes(S.view) || (S.isAdmin && S.tab === 'new' && !S.detailId);
+  const key = [S.view, S.tab, S.detailId].join('|');
+  if (formView && key === lastKey) { renderNav(); return; }
+  const changed = key !== lastKey; lastKey = key;
+
+  const scroll = $view.scrollTop;
+  let html = '';
+  switch (S.view) {
+    case 'loading':  html = `<div class="splash"><div class="spin"></div>Échauffement en cours…</div>`; break;
+    case 'guard':    html = vGuard(); break;
+    case 'login':    html = vLogin(); break;
+    case 'register': html = vRegister(); break;
+    case 'student':  html = S.tab === 'archives' ? vStudentArchives() : vStudentUpcoming(); break;
+    case 'admin':    html = vAdmin(); break;
+  }
+  $view.innerHTML = `<div class="${changed ? 'screen' : ''}">${html}</div>`;
+  $view.classList.toggle('no-nav', !S.user);
+  if (!changed) $view.scrollTop = scroll; else $view.scrollTop = 0;
+
+  renderNav();
+  renderSheet();
+}
+
+function renderNav() {
+  if (!S.user) { $nav.classList.add('hidden'); return; }
+  $nav.classList.remove('hidden');
+  const items = S.isAdmin
+    ? [['upcoming','ph-calendar-check','À venir'], ['new','ph-plus-circle','Créer'], ['archives','ph-archive','Archives']]
+    : [['upcoming','ph-calendar-check','À venir'], ['archives','ph-images','Archives & Photos']];
+  $nav.innerHTML = items.map(([id, ic, lb]) => `
+    <button data-a="tab" data-id="${id}" class="${S.tab === id ? 'active' : ''}">
+      <i class="${S.tab === id ? 'ph-fill' : 'ph'} ${ic}"></i>${lb}
+      ${id === 'upcoming' && upcomingEvents().length ? `<span class="count">${upcomingEvents().length}</span>` : ''}
+    </button>`).join('');
+}
+
+/* ---------- Écrans d'accès ---------- */
+const vGuard = () => `
+  <div class="hero">
+    <div class="hero-icon"><i class="ph-fill ph-lock-key"></i></div>
+    <h2>Accès Collège</h2>
+    <p>Entre le code donné par tes professeurs d'EPS pour créer ton compte.</p>
+    <div style="width:100%;max-width:300px">
+      <input id="guard-input" class="input code-input" placeholder="Code d'accès" autocomplete="off" autocapitalize="off">
+      <button class="btn btn-primary" data-a="check-guard" style="margin-top:14px">Valider <i class="ph-bold ph-arrow-right"></i></button>
+      <button class="link" data-a="go-login" style="margin-top:14px;width:100%">J'ai déjà un compte · Connexion</button>
+    </div>
+  </div>`;
+
+const vLogin = () => `
+  <div class="hero" style="padding-top:8px">
+    <div class="form-card" style="width:100%">
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:18px;text-align:left"><i class="ph-fill ph-sign-in" style="color:var(--blue)"></i> Connexion</h2>
+      <form id="login-form" style="text-align:left">
+        <div class="field"><label>Email</label><input class="input" id="l-email" type="email" required autocomplete="email"></div>
+        <div class="field"><label>Mot de passe</label><input class="input" id="l-pwd" type="password" required autocomplete="current-password"></div>
+        <button class="btn btn-primary" type="submit">Se connecter</button>
+      </form>
+      <button class="link" data-a="go-guard" style="margin-top:12px"><i class="ph ph-arrow-left"></i> Retour au code d'accès</button>
+    </div>
+  </div>`;
+
+const vRegister = () => `
+  <div class="form-card">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:18px">
+      <div class="avatar" style="background:linear-gradient(135deg,var(--green),#4ade80)"><i class="ph-bold ph-check"></i></div>
+      <div><h2 style="font-size:20px;font-weight:800">Code validé !</h2><p style="font-size:13px;color:var(--muted)">Crée ton profil de licencié(e).</p></div>
+    </div>
+    <form id="register-form">
+      <div class="grid2">
+        <div class="field"><label>Prénom</label><input class="input" id="r-prenom" required autocomplete="given-name"></div>
+        <div class="field"><label>Nom</label><input class="input" id="r-nom" required autocomplete="family-name"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Sexe</label>
+          <div class="seg">
+            <input type="radio" name="sexe" id="sx-f" value="F" required><label for="sx-f">F</label>
+            <input type="radio" name="sexe" id="sx-g" value="G"><label for="sx-g">G</label>
+          </div></div>
+        <div class="field"><label>Classe</label>
+          <select class="input" id="r-classe" required>
+            <option value="">Choisir…</option><option value="6e">6ème</option><option value="5e">5ème</option><option value="4e">4ème</option><option value="3e">3ème</option>
+          </select></div>
+      </div>
+      <div class="field"><label>Tél. responsable légal</label><input class="input" id="r-tel" type="tel" inputmode="tel" placeholder="06 12 34 56 78" required pattern="[0-9 .+\\-]{10,}"></div>
+      <div class="field"><label>Email (ton identifiant)</label><input class="input" id="r-email" type="email" required autocomplete="email"></div>
+      <div class="field"><label>Mot de passe (6 caractères min.)</label><input class="input" id="r-pwd" type="password" minlength="6" required autocomplete="new-password"></div>
+      <button class="btn btn-orange" type="submit" id="r-submit">Créer mon compte</button>
+    </form>
+  </div>`;
+
+/* ---------- Élève ---------- */
+const profileHeader = () => {
+  const p = S.profile || {};
+  const ini = ((p.prenom||'?')[0] + (p.nom||'?')[0]).toUpperCase();
+  return `<div class="profile"><div><small>Licencié(e)</small><h2>${esc(p.prenom)} ${esc(p.nom)} <span style="color:var(--muted);font-size:14px;font-weight:600">· ${esc(p.classe)}</span></h2></div>
+          <div class="avatar">${esc(ini)}</div></div>`;
+};
+
+function gaugeHTML(e) {
+  const n = countFor(e.id), max = Number(e.places) || 0;
+  if (!max) return `<div class="gauge"><div class="gauge-top"><span><i class="ph-fill ph-users"></i> ${n} inscrit${n>1?'s':''}</span><span style="color:var(--muted)">Places illimitées</span></div></div>`;
+  const pct = Math.min(100, Math.round(n / max * 100)), left = Math.max(0, max - n);
+  const cls = left === 0 ? 'full' : pct >= 75 ? 'warn' : '';
+  return `<div class="gauge"><div class="gauge-top"><span><i class="ph-fill ph-users"></i> ${n} / ${max}</span>
+          <span style="color:${left===0?'var(--red)':left<=3?'#d95f00':'var(--green)'}">${left===0?'Complet':left+' place'+(left>1?'s':'')+' restante'+(left>1?'s':'')}</span></div>
+          <div class="gauge-bar"><div class="gauge-fill ${cls}" style="width:${pct}%"></div></div></div>`;
+}
+
+function studentCard(e) {
+  const reg = S.inscriptions.some(i => i.id === `${e.id}_${S.user.uid}`);
+  const full = Number(e.places) > 0 && countFor(e.id) >= Number(e.places);
+  const link = safeUrl(e.edunuageLink);
+  let action = '';
+  if (!e.isPast) {
+    action = reg
+      ? `<button class="btn btn-success" data-a="unregister" data-id="${e.id}" style="margin-top:16px"><i class="ph-bold ph-check"></i> Inscrit · Me désinscrire</button>`
+      : full
+        ? `<button class="btn btn-full" disabled style="margin-top:16px"><i class="ph-bold ph-prohibit"></i> Complet</button>`
+        : `<button class="btn btn-primary" data-a="register" data-id="${e.id}" style="margin-top:16px"><i class="ph-bold ph-hand-pointing"></i> M'inscrire</button>`;
+  } else if (link) {
+    action = `<a class="btn btn-orange" href="${esc(link)}" target="_blank" rel="noopener" style="margin-top:16px;text-decoration:none"><i class="ph-fill ph-camera"></i> Voir l'album photos</a>`;
+  } else {
+    action = `<div style="margin-top:14px;font-size:13px;color:var(--muted);text-align:center;font-weight:600">Album photos bientôt disponible</div>`;
+  }
+  return `<div class="card ${e.isPast ? 'past' : ''}">
+    ${!e.isPast && reg ? '<div class="registered-stripe"></div>' : ''}
+    <span class="badge ${e.isPast ? 'gray' : ''}"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
+    <h3>${esc(e.titre)}</h3>
+    <div class="meta">
+      ${e.heure ? `<div><i class="ph-fill ph-clock"></i>RDV à ${esc(e.heure)}</div>` : ''}
+      <div><i class="ph-fill ph-map-pin"></i>${esc(e.lieu)}</div>
+    </div>
+    ${e.description ? `<div class="desc">${esc(e.description)}</div>` : ''}
+    ${!e.isPast ? gaugeHTML(e) : ''}
+    ${action}
+  </div>`;
+}
+
+const vStudentUpcoming = () => {
+  const list = upcomingEvents();
+  return profileHeader() + `<div class="section-title"><i class="ph-fill ph-calendar-check" style="color:var(--blue)"></i>À venir</div>` +
+    (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>`
+                 : `<div class="empty"><i class="ph ph-barbell"></i>Aucune compétition prévue pour le moment.<br>Reviens bientôt !</div>`);
+};
+const vStudentArchives = () => {
+  const list = pastEvents();
+  return profileHeader() + `<div class="section-title"><i class="ph-fill ph-images" style="color:var(--orange)"></i>Archives & Photos</div>` +
+    (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>`
+                 : `<div class="empty"><i class="ph ph-image"></i>Aucune archive pour l'instant.</div>`);
+};
+
+/* ---------- Admin ---------- */
+function adminCard(e) {
+  const n = countFor(e.id), max = Number(e.places) || 0;
+  return `<div class="card ${e.isPast ? 'past' : ''}">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+      <span class="badge ${e.isPast ? 'gray' : ''}"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" data-a="toggle-past" data-id="${e.id}" aria-label="${e.isPast?'Remettre à venir':'Archiver'}">
+          <i class="ph-bold ${e.isPast ? 'ph-arrow-counter-clockwise' : 'ph-archive'}"></i></button>
+        <button class="btn btn-danger btn-sm" data-a="delete-event" data-id="${e.id}" aria-label="Supprimer"><i class="ph-bold ph-trash"></i></button>
+      </div>
+    </div>
+    <h3>${esc(e.titre)}</h3>
+    <div class="meta">
+      ${e.heure ? `<div><i class="ph-fill ph-clock"></i>RDV à ${esc(e.heure)}</div>` : ''}
+      <div><i class="ph-fill ph-map-pin"></i>${esc(e.lieu)}</div>
+    </div>
+    <div class="inscrits-chip" data-a="open-detail" data-id="${e.id}">
+      <span><i class="ph-fill ph-users"></i> <b>${n}</b>${max ? ' / ' + max : ''} inscrit${n>1?'s':''}</span>
+      <span style="font-size:13px;color:var(--blue)">Voir la liste <i class="ph-bold ph-caret-right"></i></span>
+    </div>
+  </div>`;
+}
+
+function vAdmin() {
+  const banner = `<div class="admin-banner"><i class="ph-fill ph-shield-star" style="font-size:26px"></i>Espace professeur · EPS</div>`;
+  if (S.tab === 'new') return banner + `
+    <div class="form-card">
+      <h2 style="font-size:20px;font-weight:800;margin-bottom:16px"><i class="ph-fill ph-plus-circle" style="color:var(--blue)"></i> Nouvel événement</h2>
+      <form id="event-form">
+        <div class="field"><label>Titre</label><input class="input" id="e-titre" required placeholder="Cross départemental"></div>
+        <div class="grid2">
+          <div class="field"><label>Date</label><input class="input" id="e-date" type="date" required></div>
+          <div class="field"><label>Heure de RDV</label><input class="input" id="e-heure" type="time"></div>
+        </div>
+        <div class="field"><label>Lieu</label><input class="input" id="e-lieu" required placeholder="Gymnase, stade…"></div>
+        <div class="grid2">
+          <div class="field"><label>Places (0 = illimité)</label><input class="input" id="e-places" type="number" min="0" inputmode="numeric" value="0"></div>
+          <div class="field"><label>Statut</label>
+            <select class="input" id="e-statut"><option value="upcoming">À venir</option><option value="archive">Archives</option></select></div>
+        </div>
+        <div class="field"><label>Description / consignes</label><textarea class="input" id="e-desc" rows="3" placeholder="Prévoir tenue de sport, gourde…"></textarea></div>
+        <div class="field"><label>Lien album Edunuage (optionnel)</label><input class="input" id="e-link" type="url" placeholder="https://…"></div>
+        <button class="btn btn-primary" type="submit"><i class="ph-bold ph-plus"></i> Ajouter au calendrier</button>
+      </form>
+    </div>`;
+
+  const list = S.tab === 'archives' ? pastEvents() : upcomingEvents();
+  const totalIns = upcomingEvents().reduce((s, e) => s + countFor(e.id), 0);
+  return banner +
+    `<div class="stats">
+       <div class="stat"><b>${upcomingEvents().length}</b><span>À venir</span></div>
+       <div class="stat"><b>${totalIns}</b><span>Inscriptions</span></div>
+       <div class="stat"><b>${S.users.filter(u => u.role !== 'admin').length}</b><span>Élèves</span></div>
+     </div>
+     <div class="section-title">${S.tab === 'archives' ? '<i class="ph-fill ph-archive" style="color:var(--orange)"></i>Archives' : '<i class="ph-fill ph-calendar-check" style="color:var(--blue)"></i>Événements à venir'}</div>` +
+    (list.length ? `<div class="stagger">${list.map(adminCard).join('')}</div>`
+                 : `<div class="empty"><i class="ph ph-calendar-x"></i>Aucun événement ici.</div>`);
+}
+
+/* Feuille de détail (admin) : liste des inscrits + appel direct */
+function renderSheet() {
+  const old = document.getElementById('sheet');
+  if (!S.isAdmin || !S.detailId) { old?.remove(); return; }
+  const e = S.events.find(x => x.id === S.detailId);
+  if (!e) { S.detailId = null; old?.remove(); return; }
+
+  const people = S.inscriptions.filter(i => i.eventId === e.id).map(i => {
+    const u = S.users.find(u => u.id === i.userId);
+    return u || { prenom:'(compte', nom:'supprimé)', classe:'?', sexe:'?', telResponsable:'' };
+  }).sort((a, b) => (a.nom||'').localeCompare(b.nom||'', 'fr'));
+
+  const girls = people.filter(p => p.sexe === 'F').length, boys = people.filter(p => p.sexe === 'G').length;
+  const html = `
+    <div class="sheet-head">
+      <button class="icon-btn" data-a="close-detail" aria-label="Retour"><i class="ph-bold ph-arrow-left"></i></button>
+      <div><h2>${esc(e.titre)}</h2><p>${esc(cap(fmtDate(e.date)))}${e.heure ? ' · ' + esc(e.heure) : ''} · ${esc(e.lieu)}</p></div>
+    </div>
+    <div class="sheet-body">
+      <div class="stats">
+        <div class="stat"><b>${people.length}</b><span>Inscrits</span></div>
+        <div class="stat"><b>${girls}</b><span>Filles</span></div>
+        <div class="stat"><b>${boys}</b><span>Garçons</span></div>
+      </div>
+      ${people.length ? people.map(p => `
+        <div class="person">
+          <div class="sexe ${esc(p.sexe)}">${esc(p.sexe)}</div>
+          <div class="person-info"><b>${esc((p.nom||'').toUpperCase())} ${esc(p.prenom)}</b>
+            <span>Classe ${esc(p.classe)}</span>
+            <span class="tel-txt">${p.telResponsable ? esc(p.telResponsable) : 'N° non renseigné'}</span></div>
+          <a class="call ${p.telResponsable ? '' : 'disabled'}" href="tel:${esc(telHref(p.telResponsable))}" aria-label="Appeler le responsable"><i class="ph-fill ph-phone"></i></a>
+        </div>`).join('') : `<div class="empty"><i class="ph ph-user-circle-dashed"></i>Aucun inscrit pour le moment.</div>`}
+      <div class="btn-row">
+        <button class="btn ${e.isPast ? 'btn-ghost' : 'btn-orange'}" data-a="toggle-past" data-id="${e.id}">
+          <i class="ph-bold ${e.isPast ? 'ph-arrow-counter-clockwise' : 'ph-archive'}"></i> ${e.isPast ? 'Remettre à venir' : 'Archiver'}</button>
+      </div>
+    </div>`;
+  if (old) { const st = old.querySelector('.sheet-body').scrollTop; old.innerHTML = html; old.querySelector('.sheet-body').scrollTop = st; old.style.animation = 'none'; }
+  else { const s = document.createElement('div'); s.id = 'sheet'; s.className = 'sheet'; s.innerHTML = html; document.getElementById('shell').appendChild(s); }
+}
+
+/* =====================================================================
+   6. ACTIONS (délégation de clics)
+   ===================================================================== */
+document.addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('[data-a]');
+  if (!btn) return;
+  const a = btn.dataset.a, id = btn.dataset.id;
+  try {
+    switch (a) {
+      case 'go-login': S.view = 'login'; render(); break;
+      case 'go-guard': S.view = 'guard'; render(); break;
+      case 'logout':   await signOut(auth); toast('À bientôt !', 'info'); break;
+      case 'tab':      S.tab = id; S.detailId = null; render(); break;
+      case 'open-detail':  S.detailId = id; render(); break;
+      case 'close-detail': S.detailId = null; render(); break;
+
+      case 'check-guard': {
+        const inp = document.getElementById('guard-input');
+        if (inp.value.trim() === ACCESS_CODE) { S.view = 'register'; render(); toast('Code correct, bienvenue !'); }
+        else { inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake'); toast('Code invalide', 'error'); }
+        break;
+      }
+
+      case 'register': case 'unregister': {
+        if (!S.user || S.busy.has(id)) return;
+        const ev2 = S.events.find(e => e.id === id);
+        if (a === 'register' && ev2) {                      // contrôle de la jauge côté client
+          const max = Number(ev2.places) || 0;
+          if (max && countFor(id) >= max) return toast('Désolé, cet événement est complet.', 'error');
+        }
+        S.busy.add(id); setLoading(btn, true);
+        const docId = `${id}_${S.user.uid}`;
+        try {
+          if (a === 'register') {
+            await setDoc(dref('inscriptions', docId), { eventId:id, userId:S.user.uid, timestamp:Date.now() });
+            toast('Inscription validée ! 🎉');
+          } else { await deleteDoc(dref('inscriptions', docId)); toast('Inscription annulée', 'info'); }
+        } finally { S.busy.delete(id); render(); }
+        break;
+      }
+
+      case 'toggle-past': {
+        const e = S.events.find(x => x.id === id); if (!e) return;
+        await updateDoc(dref('evenements', id), { isPast: !e.isPast });
+        toast(e.isPast ? "Remis dans « À venir »" : 'Événement archivé', 'info');
+        break;
+      }
+
+      case 'delete-event': {
+        const e = S.events.find(x => x.id === id); if (!e) return;
+        if (!await confirmModal('Supprimer cet événement ?', `« ${e.titre} » et ses inscriptions seront définitivement supprimés.`, 'Supprimer')) return;
+        const snap = await getDocs(query(col('inscriptions'), where('eventId', '==', id)));
+        const batch = writeBatch(db);
+        snap.forEach(d => batch.delete(d.ref));
+        batch.delete(dref('evenements', id));
+        await batch.commit();
+        S.detailId = null; toast('Événement supprimé');
+        break;
+      }
+    }
+  } catch (err) { console.error(err); toast(friendlyError(err), 'error'); render(); }
+});
+
+/* Formulaires */
+document.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const form = ev.target, btn = form.querySelector('button[type="submit"]');
+  try {
+    if (form.id === 'login-form') {
+      setLoading(btn, true);
+      await signInWithEmailAndPassword(auth, document.getElementById('l-email').value.trim(), document.getElementById('l-pwd').value);
+      toast('Connexion réussie !');
+    }
+
+    if (form.id === 'register-form') {
+      setLoading(btn, true);
+      const email = document.getElementById('r-email').value.trim();
+      const data = {
+        prenom: document.getElementById('r-prenom').value.trim(),
+        nom: document.getElementById('r-nom').value.trim(),
+        sexe: form.querySelector('input[name="sexe"]:checked').value,
+        classe: document.getElementById('r-classe').value,
+        telResponsable: document.getElementById('r-tel').value.trim(),
+        email, role: 'eleve'
+      };
+      S.registering = true;
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, document.getElementById('r-pwd').value);
+        await setDoc(dref('utilisateurs', cred.user.uid), data);
+        S.registering = false;
+        await enterApp(cred.user);
+        toast(`Bienvenue ${data.prenom} !`);
+      } finally { S.registering = false; }
+    }
+
+    if (form.id === 'event-form') {
+      setLoading(btn, true);
+      await addDoc(col('evenements'), {
+        titre: document.getElementById('e-titre').value.trim(),
+        date: document.getElementById('e-date').value,
+        heure: document.getElementById('e-heure').value,
+        lieu: document.getElementById('e-lieu').value.trim(),
+        places: Math.max(0, parseInt(document.getElementById('e-places').value, 10) || 0),
+        description: document.getElementById('e-desc').value.trim(),
+        edunuageLink: safeUrl(document.getElementById('e-link').value.trim()),
+        isPast: document.getElementById('e-statut').value === 'archive',
+        createdAt: Date.now()
+      });
+      form.reset(); setLoading(btn, false);
+      toast('Événement ajouté !');
+      S.tab = document.getElementById('e-statut') ? 'upcoming' : 'upcoming'; render();
+    }
+  } catch (err) {
+    console.error(err);
+    setLoading(btn, false);
+    toast(friendlyError(err), 'error');
+  }
+});
+
+/* Touche Entrée sur le champ code */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'guard-input') document.querySelector('[data-a="check-guard"]')?.click();
+});
+
+function friendlyError(err) {
+  const m = {
+    'auth/email-already-in-use': 'Cet email est déjà utilisé.',
+    'auth/invalid-credential': 'Email ou mot de passe incorrect.',
+    'auth/invalid-email': 'Adresse email invalide.',
+    'auth/weak-password': 'Mot de passe trop faible (6 caractères min.).',
+    'auth/too-many-requests': 'Trop de tentatives, réessaie dans quelques minutes.',
+    'auth/network-request-failed': 'Pas de connexion internet.',
+    'permission-denied': "Action non autorisée (vérifie les règles Firestore)."
+  };
+  return m[err.code] || 'Une erreur est survenue.';
+}
+
+/* =====================================================================
+   7. PWA : manifeste généré à la volée (ajout à l'écran d'accueil)
+   ===================================================================== */
+(() => {
+  const icon = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='#0b2a6f'/><circle cx='256' cy='256' r='130' fill='#ff7a1a'/></svg>`);
+  const manifest = { name:'AS Collège Claudie Haigneré', short_name:'AS Haigneré', display:'standalone', orientation:'portrait',
+    background_color:'#eef2f9', theme_color:'#0b2a6f', start_url: location.pathname,
+    icons:[{ src:icon, sizes:'512x512', type:'image/svg+xml', purpose:'any maskable' }] };
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type:'application/manifest+json' }));
+  document.head.appendChild(link);
+})();
+
+render();   // affiche l'écran de chargement en attendant Firebase Auth
+</script>
+</body>
+</html>
