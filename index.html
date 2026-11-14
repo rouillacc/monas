@@ -183,8 +183,10 @@ const S = {
   events: [], inscriptions: [], users: [], unsubs: [], detailId: null
 };
 
+// CORRECTION 1 : Déclarations de variables corrigées
 const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');
+const $head = document.getElementById('header-actions'); 
 
 // Outils
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -222,7 +224,8 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     S.unsubs.forEach(u => u()); S.unsubs = [];
     Object.assign(S, { user:null, profile:null, isAdmin:false, tab:'upcoming', view:'guard' });
-    return render();
+    try { render(); } catch(e) {}
+    return;
   }
   S.user = user;
   S.isAdmin = (user.email || '').toLowerCase() === ADMIN_EMAIL;
@@ -232,19 +235,20 @@ onAuthStateChanged(auth, async (user) => {
       S.profile = snap.data();
   }
   S.view = S.isAdmin ? 'admin' : 'student';
-  S.unsubs.push(onSnapshot(col('evenements'), s => { S.events = s.docs.map(d => ({id:d.id, ...d.data()})); render(); }));
-  S.unsubs.push(onSnapshot(col('inscriptions'), s => { S.inscriptions = s.docs.map(d => ({id:d.id, ...d.data()})); render(); }));
-  if(S.isAdmin) S.unsubs.push(onSnapshot(col('utilisateurs'), s => { S.users = s.docs.map(d => ({id:d.id, ...d.data()})); render(); }));
-  render();
+  S.unsubs.push(onSnapshot(col('evenements'), s => { S.events = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
+  S.unsubs.push(onSnapshot(col('inscriptions'), s => { S.inscriptions = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
+  if(S.isAdmin) S.unsubs.push(onSnapshot(col('utilisateurs'), s => { S.users = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
+  try{render()}catch(e){}
 });
 
 function render() {
   const scroll = $view.scrollTop;
   $head.innerHTML = S.user ? `<button class="icon-btn" onclick="signOutAuth()" aria-label="Déconnexion"><i class="ph-bold ph-sign-out"></i></button>` : '';
 
-  if(S.view === 'guard') $view.innerHTML = `<div class="hero"><div class="hero-icon"><i class="ph-fill ph-lock-key"></i></div><h2>Accès Collège</h2><p>Entre le code de l'AS.</p><div style="width:100%;max-width:300px"><input id="guard-input" class="input code-input" placeholder="Code d'accès"><button class="btn btn-primary" onclick="checkCode()" style="margin-top:14px">Valider</button><button class="link" onclick="S.view='login';render()" style="margin-top:14px;width:100%">J'ai déjà un compte · Connexion</button></div></div>`;
+  // CORRECTION 2 : on utilise showLogin() et showGuard()
+  if(S.view === 'guard') $view.innerHTML = `<div class="hero"><div class="hero-icon"><i class="ph-fill ph-lock-key"></i></div><h2>Accès Collège</h2><p>Entre le code de l'AS.</p><div style="width:100%;max-width:300px"><input id="guard-input" class="input code-input" placeholder="Code d'accès"><button class="btn btn-primary" onclick="checkCode()" style="margin-top:14px">Valider</button><button class="link" onclick="showLogin()" style="margin-top:14px;width:100%">J'ai déjà un compte · Connexion</button></div></div>`;
   
-  if(S.view === 'login') $view.innerHTML = `<div class="hero" style="padding-top:8px"><div class="form-card" style="width:100%"><h2 style="font-size:22px;font-weight:800;margin-bottom:18px;text-align:left"><i class="ph-fill ph-sign-in" style="color:var(--blue)"></i> Connexion</h2><form id="login-form" style="text-align:left"><div class="field"><label>Email</label><input class="input" id="l-email" type="email" required></div><div class="field"><label>Mot de passe</label><input class="input" id="l-pwd" type="password" required></div><button class="btn btn-primary" type="submit">Se connecter</button></form><button class="link" onclick="S.view='guard';render()" style="margin-top:12px"><i class="ph ph-arrow-left"></i> Retour</button></div></div>`;
+  if(S.view === 'login') $view.innerHTML = `<div class="hero" style="padding-top:8px"><div class="form-card" style="width:100%"><h2 style="font-size:22px;font-weight:800;margin-bottom:18px;text-align:left"><i class="ph-fill ph-sign-in" style="color:var(--blue)"></i> Connexion</h2><form id="login-form" style="text-align:left"><div class="field"><label>Email</label><input class="input" id="l-email" type="email" required></div><div class="field"><label>Mot de passe</label><input class="input" id="l-pwd" type="password" required></div><button class="btn btn-primary" type="submit">Se connecter</button></form><button class="link" onclick="showGuard()" style="margin-top:12px"><i class="ph ph-arrow-left"></i> Retour</button></div></div>`;
 
   if(S.view === 'register') $view.innerHTML = `<div class="form-card"><h2 style="font-size:20px;font-weight:800;margin-bottom:18px">Création du compte</h2><form id="register-form"><div class="grid2"><div class="field"><label>Prénom</label><input class="input" id="r-prenom" required></div><div class="field"><label>Nom</label><input class="input" id="r-nom" required></div></div><div class="grid2"><div class="field"><label>Sexe</label><div class="seg"><input type="radio" name="sexe" id="sx-f" value="F" required><label for="sx-f">F</label><input type="radio" name="sexe" id="sx-g" value="G"><label for="sx-g">G</label></div></div><div class="field"><label>Classe</label><select class="input" id="r-classe" required><option value="">Choisir…</option><option value="6e">6ème</option><option value="5e">5ème</option><option value="4e">4ème</option><option value="3e">3ème</option></select></div></div><div class="field"><label>Tél. responsable</label><input class="input" id="r-tel" type="tel" required></div><div class="field"><label>Email</label><input class="input" id="r-email" type="email" required></div><div class="field"><label>Mot de passe</label><input class="input" id="r-pwd" type="password" minlength="6" required></div><button class="btn btn-orange" type="submit">Créer mon compte</button></form></div>`;
 
@@ -371,14 +375,14 @@ document.addEventListener('click', async (ev) => {
   const tabBtn = ev.target.closest('[data-tab]');
   if(tabBtn) {
       if(tabBtn.dataset.tab === 'appel') { openAppelMode(); } 
-      else { S.tab = tabBtn.dataset.tab; render(); }
+      else { S.tab = tabBtn.dataset.tab; try{render()}catch(e){} }
   }
   
   const btn = ev.target.closest('[data-a]');
   if(btn) {
       const a = btn.dataset.a, id = btn.dataset.id;
-      if(a === 'close-detail') { S.detailId = null; render(); }
-      if(a === 'open-detail') { S.detailId = id; render(); }
+      if(a === 'close-detail') { S.detailId = null; try{render()}catch(e){} }
+      if(a === 'open-detail') { S.detailId = id; try{render()}catch(e){} }
       if(a === 'register' || a === 'unregister') {
           btn.innerHTML = '<span class="spin"></span>';
           const docId = `${id}_${S.user.uid}`;
@@ -391,7 +395,7 @@ document.addEventListener('click', async (ev) => {
       }
       if(a === 'toggle-past') {
           const e = S.events.find(x => x.id === id);
-          if(e) { await updateDoc(dref('evenements', id), { isPast: !e.isPast }); toast('Statut modifié'); S.detailId=null; render(); }
+          if(e) { await updateDoc(dref('evenements', id), { isPast: !e.isPast }); toast('Statut modifié'); S.detailId=null; try{render()}catch(e){} }
       }
   }
   
@@ -424,7 +428,6 @@ document.addEventListener('click', async (ev) => {
               const theme = parts[2]?.trim();
               const lieu = parts[8]?.trim() || 'À définir';
               
-              // Reconnaissance robuste du format de date District (ex: "16-sept.-26" ou "3-mars-27")
               if(dateBrute && titre && dateBrute.match(/^\d{1,2}-[a-zûé]+(\.)?-\d{2}$/i)) {
                   const dParts = dateBrute.split('-');
                   const jour = dParts[0].padStart(2, '0');
@@ -489,7 +492,7 @@ document.addEventListener('submit', async (ev) => {
         description: document.getElementById('e-desc').value.trim(), places: 0, isPast: false, createdAt: Date.now()
       });
       form.reset(); toast('Événement ajouté !');
-      S.tab = 'upcoming'; render();
+      S.tab = 'upcoming'; try{render()}catch(e){}
     }
   } catch (err) {
     btn.innerHTML = 'Erreur, réessayer';
@@ -497,15 +500,37 @@ document.addEventListener('submit', async (ev) => {
   }
 });
 
+// CORRECTION 2 : Ajout des fonctions showLogin et showGuard
+window.showLogin = () => {
+    S.view = 'login';
+    try { render(); } catch(e) {}
+};
+
+window.showGuard = () => {
+    S.view = 'guard';
+    try { render(); } catch(e) {}
+};
+
 window.checkCode = () => {
     const val = document.getElementById('guard-input').value.trim();
-    if(val === ACCESS_CODE) { S.view = 'register'; render(); toast('Code valide !'); }
+    if(val === ACCESS_CODE) { S.view = 'register'; try{render()}catch(e){} toast('Code valide !'); }
     else { toast('Code invalide', 'error'); }
 };
 
 window.signOutAuth = async () => { await signOut(auth); toast('À bientôt !', 'info'); }
 
-render();
+// CORRECTION 3 : Sécurisation du démarrage
+try {
+    render();
+} catch (error) {
+    console.error("Erreur de démarrage AS :", error);
+    $view.innerHTML = `
+        <div class="empty">
+            <h3>Une erreur est survenue</h3>
+            <p>Recharge la page ou contacte le professeur.</p>
+        </div>
+    `;
+}
 </script>
 </body>
 </html>
