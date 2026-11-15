@@ -7,7 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>AS Collège Claudie Haigneré</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b2a6f'/%3E%3Ccircle cx='50' cy='50' r='26' fill='%23ff7a1a'/%3E%3C/svg%3E">
+<!-- ICÔNE PAR DÉFAUT (Logo AS Claudie Haigneré) - Peut être modifiée plus tard -->
+<link rel="icon" id="app-favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b2a6f'/%3E%3Ccircle cx='50' cy='50' r='26' fill='%23ff7a1a'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
@@ -23,13 +24,14 @@
 html,body{height:100%}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden; display:flex;justify-content:center}
 button,input,select,textarea{font:inherit;color:inherit}
-button{cursor:pointer;border:none;background:none}
+button{cursor:pointer;border:none;background:none;outline:none;}
 
 #shell{width:100%;max-width:480px;height:100dvh;display:flex;flex-direction:column;background:var(--bg); position:relative;overflow:hidden;box-shadow:0 0 60px rgba(15,35,95,.15)}
 
 header{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;padding:calc(env(safe-area-inset-top) + 16px) 20px 20px; border-radius:0 0 32px 32px;box-shadow:0 12px 30px rgba(11,42,111,.35);z-index:10;flex-shrink:0; display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:14px}
-.brand-logo{width:48px;height:48px;border-radius:16px;background:rgba(255,255,255,.15);display:grid;place-items:center; font-size:28px;color:var(--orange-2);backdrop-filter:blur(10px)}
+.brand-logo{width:48px;height:48px;border-radius:16px;background:rgba(255,255,255,.15);display:grid;place-items:center; font-size:28px;color:var(--orange-2);backdrop-filter:blur(10px);overflow:hidden;}
+.brand-logo img{width:100%;height:100%;object-fit:cover;}
 .brand h1{font-size:16px;font-weight:800;line-height:1.2;letter-spacing:.03em;text-transform:uppercase}
 .brand h1 span{color:#bcd0ff;font-weight:600}
 .icon-btn{width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;font-size:22px; display:grid;place-items:center;position:relative;overflow:hidden;transition:.2s}
@@ -53,19 +55,31 @@ main::-webkit-scrollbar{width:0}
 .event-info { flex: 1; min-width: 0; }
 .badge{display:inline-flex;align-items:center;gap:6px;background:#e8efff;color:var(--blue);font-size:12px;font-weight:800; padding:6px 12px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em; margin-bottom:8px;}
 .badge.gray{background:#e2e8f0;color:#475569}
+.badge.red{background:#fee2e2;color:var(--red)}
 .card h3{font-size:19px;font-weight:800;margin:0 0 8px;line-height:1.25; color:var(--text);}
 .meta{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:13px;font-weight:600}
 .desc{margin-top:14px;background:#f8fafc;border-radius:14px;padding:12px 14px;font-size:14px;color:#334155;line-height:1.5; border:1px solid var(--line);}
 .registered-stripe{position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--green)}
 
+/* Barre de progression (jauge) */
+.gauge{margin-top:16px; margin-bottom:4px;}
+.gauge-top{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;}
+.gauge-bar{height:12px;border-radius:99px;background:#e2e8f0;overflow:hidden; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05);}
+.gauge-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),#38bdf8);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.gauge-fill.warn{background:linear-gradient(90deg,var(--orange),var(--orange-2))}
+.gauge-fill.full{background:linear-gradient(90deg,var(--red),#f87171)}
+
 .btn{width:100%;padding:16px;border-radius:16px;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px; position:relative;overflow:hidden;transition:all .2s cubic-bezier(0.2,0.8,0.2,1); cursor:pointer;}
 .btn:active{transform:scale(.96)}
+.btn:disabled{opacity:0.6; pointer-events:none;}
 .btn-primary{background:linear-gradient(135deg,var(--blue),var(--navy-2));color:#fff; box-shadow:0 8px 20px rgba(37,99,235,0.25);}
 .btn-orange{background:linear-gradient(135deg,var(--orange),var(--orange-2));color:#fff; box-shadow:0 8px 20px rgba(255,122,26,0.25);}
 .btn-success{background:#dcfce7;color:#15803d;border:2px solid #22c55e;}
 .btn-ghost{background:#eef2fb;color:var(--navy-2)}
 .btn-danger{background:#fee2e2;color:var(--red)}
+.btn-disabled{background:#f1f5f9;color:var(--muted);border:2px solid #cbd5e1;}
 .icon-action{background:#f1f5f9; color:var(--muted); width:36px; height:36px; border-radius:12px; display:grid; place-items:center; font-size:18px;}
+.icon-action:active{transform:scale(0.9)}
 
 .form-card{background:#fff;border-radius:var(--radius);padding:24px;box-shadow:var(--shadow); margin-bottom:20px;}
 .field{margin-bottom:16px}
@@ -122,8 +136,8 @@ nav button.active i{transform:scale(1.15)}
 <div id="shell">
   <header>
     <div class="brand">
-      <div class="brand-logo"><i class="ph-fill ph-person-simple-run"></i></div>
-      <h1>AS Claudie<br><span>Haigneré</span></h1>
+      <div class="brand-logo" id="header-logo"><i class="ph-fill ph-person-simple-run"></i></div>
+      <h1 id="header-title">AS Claudie<br><span>Haigneré</span></h1>
     </div>
     <div id="header-actions"></div>
   </header>
@@ -166,7 +180,7 @@ nav button.active i{transform:scale(1.15)}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB475MQ5DD_xXZlVHKDbcrPcciLSr7FGto",
@@ -187,7 +201,7 @@ const dref = (name, id) => doc(db, 'artifacts', 'as-claudie-haignere', 'public',
 
 const S = {
   view: 'loading', tab: 'upcoming', user: null, profile: null, isAdmin: false,
-  events: [], inscriptions: [], users: [], unsubs: [], detailId: null, editId: null
+  events: [], inscriptions: [], users: [], unsubs: [], detailId: null, editId: null, appSettings: {}
 };
 
 const $view = document.getElementById('view');
@@ -255,13 +269,77 @@ window.toast = function(msg, type = 'success') {
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 2800);
 }
 
-window.closeAppelMode = function() { document.getElementById('appel-overlay').style.display = 'none'; }
+// GESTION APPEL ET SYNCHRO
+window.closeAppelMode = function() { 
+    document.getElementById('appel-overlay').style.display = 'none'; 
+    if(S.isAdmin) importAppelsToInscriptions();
+}
 window.openAppelMode = function() { document.getElementById('appel-overlay').style.display = 'flex'; }
+
+async function importAppelsToInscriptions() {
+    if(!S.isAdmin) return;
+    try {
+        const dbAppel = getFirestore(app); // Même projet firebase
+        const appelsRef = collection(dbAppel, 'appelas');
+        const snap = await getDocs(appelsRef);
+        let countImported = 0;
+        
+        const today = getTodayString();
+        const matchingEvent = S.events.find(e => e.date === today);
+        if(!matchingEvent) return;
+
+        snap.forEach(docSnap => {
+            const schoolData = docSnap.data();
+            if(schoolData.sessions && Array.isArray(schoolData.sessions)) {
+                schoolData.sessions.forEach(sess => {
+                    if(sess.date === today && sess.presenceIds && sess.presenceIds.length > 0) {
+                        sess.presenceIds.forEach(studentAppelId => {
+                            const studentInAppel = (schoolData.roster || []).find(r => r.id === studentAppelId);
+                            if(studentInAppel) {
+                                const nom = (studentInAppel.lastname || '').toLowerCase().trim();
+                                const prenom = (studentInAppel.firstname || '').toLowerCase().trim();
+                                const asUser = S.users.find(u => (u.nom || '').toLowerCase().trim() === nom && (u.prenom || '').toLowerCase().trim() === prenom);
+                                
+                                if(asUser) {
+                                    const regId = `${matchingEvent.id}_${asUser.id}`;
+                                    if(!S.inscriptions.some(i => i.id === regId)) {
+                                        setDoc(dref('inscriptions', regId), { eventId: matchingEvent.id, userId: asUser.id, timestamp: Date.now() });
+                                        countImported++;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        if(countImported > 0) toast(`${countImported} appel(s) importé(s) dans Inscriptions !`, 'info');
+    } catch(err) { console.log(err); }
+}
+
+function updateBrandDisplay() {
+    if(S.appSettings.logoBase64) {
+        document.getElementById('header-logo').innerHTML = `<img src="${S.appSettings.logoBase64}" alt="Logo">`;
+        document.getElementById('app-favicon').href = S.appSettings.logoBase64;
+    }
+    if(S.appSettings.nomAS) {
+        const parts = S.appSettings.nomAS.split(' ');
+        if(parts.length > 1) {
+            const first = parts.shift();
+            document.getElementById('header-title').innerHTML = `${esc(first)}<br><span>${esc(parts.join(' '))}</span>`;
+        } else {
+            document.getElementById('header-title').innerHTML = esc(S.appSettings.nomAS);
+        }
+        document.title = S.appSettings.nomAS;
+    }
+}
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     S.unsubs.forEach(u => u()); S.unsubs = [];
     Object.assign(S, { user:null, profile:null, isAdmin:false, tab:'upcoming', view:'guard' });
+    const setSnap = await getDoc(dref('settings', 'global')).catch(()=>null);
+    if(setSnap && setSnap.exists()) { S.appSettings = setSnap.data(); updateBrandDisplay(); }
     try { render(); } catch(e) {}
     return;
   }
@@ -277,6 +355,7 @@ onAuthStateChanged(auth, async (user) => {
   S.unsubs.push(onSnapshot(col('evenements'), s => { S.events = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
   S.unsubs.push(onSnapshot(col('inscriptions'), s => { S.inscriptions = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
   S.unsubs.push(onSnapshot(col('utilisateurs'), s => { S.users = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
+  S.unsubs.push(onSnapshot(dref('settings', 'global'), s => { if(s.exists()){ S.appSettings = s.data(); updateBrandDisplay(); } }));
   try{render()}catch(e){}
 });
 
@@ -284,7 +363,15 @@ function render() {
   const scroll = $view.scrollTop;
   $head.innerHTML = S.user ? `<button class="icon-btn" onclick="signOutAuth()" aria-label="Déconnexion"><i class="ph-bold ph-sign-out"></i></button>` : '';
 
-  if(S.view === 'guard') $view.innerHTML = `<div class="hero"><div class="hero-icon"><i class="ph-fill ph-lock-key"></i></div><h2>Accès Collège</h2><p style="color:var(--muted); font-weight:600; margin-bottom:24px;">Entre le code de l'AS fourni par les professeurs.</p><div style="width:100%;max-width:300px"><input id="guard-input" class="input code-input" placeholder="CODE"><button class="btn btn-primary" onclick="checkCode()" style="margin-top:16px">Valider l'accès</button><button class="link" onclick="showLogin()" style="margin-top:16px;width:100%">J'ai déjà un compte · Connexion</button></div></div>`;
+  if(S.view === 'guard') {
+      $view.innerHTML = `<div class="hero"><div class="hero-icon" id="hero-logo-large"><i class="ph-fill ph-lock-key"></i></div><h2 id="hero-title-large">Accès Collège</h2><p style="color:var(--muted); font-weight:600; margin-bottom:24px;">Entre le code de l'AS fourni par les professeurs.</p><div style="width:100%;max-width:300px"><input id="guard-input" class="input code-input" placeholder="CODE"><button class="btn btn-primary" onclick="checkCode()" style="margin-top:16px">Valider l'accès</button><button class="link" onclick="showLogin()" style="margin-top:16px;width:100%">J'ai déjà un compte · Connexion</button></div></div>`;
+      if(S.appSettings.logoBase64) {
+          setTimeout(() => {
+              if(document.getElementById('hero-logo-large')) document.getElementById('hero-logo-large').innerHTML = `<img src="${S.appSettings.logoBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:32px;">`;
+              if(S.appSettings.nomAS && document.getElementById('hero-title-large')) document.getElementById('hero-title-large').innerText = S.appSettings.nomAS;
+          }, 50);
+      }
+  }
   
   if(S.view === 'login') $view.innerHTML = `<div class="hero" style="padding-top:8px"><div class="form-card" style="width:100%"><h2 style="font-size:24px;font-weight:800;margin-bottom:24px;text-align:left;color:var(--navy);"><i class="ph-fill ph-sign-in" style="color:var(--blue); vertical-align:-3px;"></i> Connexion</h2><form id="login-form" style="text-align:left"><div class="field"><label>Email</label><input class="input" id="l-email" type="email" required></div><div class="field"><label>Mot de passe</label><input class="input" id="l-pwd" type="password" required></div><button class="btn btn-primary" type="submit" style="margin-top:24px;">Se connecter</button></form><button class="link" onclick="showGuard()" style="margin-top:16px"><i class="ph-bold ph-arrow-left"></i> Retour</button></div></div>`;
 
@@ -303,7 +390,7 @@ function renderNav() {
   if (!S.user) { $nav.classList.add('hidden'); return; }
   $nav.classList.remove('hidden');
   const items = S.isAdmin
-    ? [['upcoming','ph-calendar-check','À venir'], ['appel','ph-clipboard-text','Appel'], ['new','ph-plus-circle','Créer'], ['archives','ph-archive','Archives']]
+    ? [['upcoming','ph-calendar-check','À venir'], ['appel','ph-clipboard-text','Appel'], ['new','ph-plus-circle','Gérer AS'], ['archives','ph-archive','Archives']]
     : [['upcoming','ph-calendar-check','À venir'], ['gallery','ph-images','Galerie Photos']];
   
   $nav.innerHTML = items.map(([id, ic, lb]) => `
@@ -314,10 +401,27 @@ function renderNav() {
 
 const profileHeader = () => `<div class="profile"><div><small style="color:var(--muted); font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">Licencié(e) UNSS</small><h2>${esc(S.profile?.prenom)} ${esc(S.profile?.nom)}</h2></div><div class="avatar">${(S.profile?.prenom||'?')[0]}</div></div>`;
 
+function gaugeHTML(e, n) {
+  const max = Number(e.places) || 0;
+  if (!max) return '';
+  const pct = Math.min(100, Math.round((n / max) * 100));
+  const left = Math.max(0, max - n);
+  const isClosed = e.inscriptionsClosed;
+  const cls = isClosed || left === 0 ? 'full' : pct >= 75 ? 'warn' : '';
+  const statusText = isClosed ? 'Fermées' : (left === 0 ? 'Complet' : `${left} place${left>1?'s':''} dispo`);
+  const statusColor = isClosed || left === 0 ? 'var(--red)' : (left <= 3 ? 'var(--orange)' : 'var(--green)');
+  return `
+    <div class="gauge">
+        <div class="gauge-top"><span><i class="ph-fill ph-users"></i> ${n} / ${max} inscrits</span><span style="color:${statusColor}">${statusText}</span></div>
+        <div class="gauge-bar"><div class="gauge-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>`;
+}
+
 function studentCard(e) {
   const reg = S.inscriptions.some(i => i.id === `${e.id}_${S.user.uid}`);
   const theme = getEventTheme(e.titre, e.description || '');
   const n = countFor(e.id);
+  const max = Number(e.places) || 0;
   
   if (S.tab === 'gallery') {
       return `<div class="card past">
@@ -328,18 +432,25 @@ function studentCard(e) {
                 <h3>${esc(e.titre)}</h3>
             </div>
         </div>
-        <a class="btn btn-orange" href="${esc(e.edunuageLink)}" target="_blank" style="margin-top:16px; text-decoration:none;">
-           <i class="ph-bold ph-camera"></i> Voir l'album
-        </a>
+        <a class="btn btn-orange" href="${esc(e.edunuageLink)}" target="_blank" style="margin-top:16px; text-decoration:none;"><i class="ph-bold ph-camera"></i> Voir l'album</a>
       </div>`;
   }
+
+  const isClosed = e.inscriptionsClosed;
+  const isFull = max > 0 && n >= max;
+  let actionBtn = '';
+  
+  if (reg) actionBtn = `<button class="btn btn-success" data-a="unregister" data-id="${e.id}" style="margin-top:18px"><i class="ph-bold ph-check"></i> Inscrit · Me désinscrire</button>`;
+  else if (isClosed) actionBtn = `<button class="btn btn-disabled" disabled style="margin-top:18px"><i class="ph-bold ph-lock-key"></i> Inscriptions fermées</button>`;
+  else if (isFull) actionBtn = `<button class="btn btn-disabled" disabled style="margin-top:18px"><i class="ph-bold ph-prohibit"></i> Complet</button>`;
+  else actionBtn = `<button class="btn btn-primary" data-a="register" data-id="${e.id}" style="margin-top:18px"><i class="ph-bold ph-hand-pointing"></i> M'inscrire</button>`;
 
   return `<div class="card">
     ${reg ? '<div class="registered-stripe"></div>' : ''}
     <div class="card-flex">
         <div class="event-thumb" style="background:${theme.color}">${theme.emoji}</div>
         <div class="event-info">
-            <span class="badge"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
+            <span class="badge ${isClosed ? 'red' : ''}"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
             <h3>${esc(e.titre)}</h3>
             <div class="meta">
               ${e.heure ? `<div><i class="ph-fill ph-clock"></i>RDV à ${esc(e.heure)}</div>` : ''}
@@ -347,14 +458,13 @@ function studentCard(e) {
             </div>
         </div>
     </div>
+    ${gaugeHTML(e, n)}
     ${e.description ? `<div class="desc"><i class="ph-fill ph-info" style="color:var(--blue); vertical-align:-2px; margin-right:4px;"></i> ${esc(e.description)}</div>` : ''}
-    
     <div class="inscrits-chip" data-a="open-detail" data-id="${e.id}" style="background:#f8fafc; border:1px solid #e2e8f0; margin-top:14px; margin-bottom:14px;">
       <span><i class="ph-fill ph-users"></i> <b>${n}</b> inscrit${n>1?'s':''}</span>
-      <span style="font-size:13px;color:var(--blue)">Voir les copains inscrits <i class="ph-bold ph-caret-right"></i></span>
+      <span style="font-size:13px;color:var(--blue)">Voir les copains <i class="ph-bold ph-caret-right"></i></span>
     </div>
-
-    ${reg ? `<button class="btn btn-success" data-a="unregister" data-id="${e.id}"><i class="ph-bold ph-check"></i> Inscrit · Me désinscrire</button>` : `<button class="btn btn-primary" data-a="register" data-id="${e.id}"><i class="ph-bold ph-hand-pointing"></i> M'inscrire</button>`}
+    ${actionBtn}
   </div>`;
 }
 
@@ -374,16 +484,23 @@ function adminCard(e) {
   const n = countFor(e.id);
   const theme = getEventTheme(e.titre, e.description || '');
   const past = e.isPast || e.date < getTodayString();
+  const max = Number(e.places) || 0;
+  const closed = e.inscriptionsClosed;
   
+  let lockBtn = closed 
+      ? `<button class="icon-action" style="background:#fee2e2;color:var(--red);" data-a="toggle-lock" data-id="${e.id}" title="Ouvrir"><i class="ph-bold ph-lock-key"></i></button>`
+      : `<button class="icon-action" style="background:#dcfce7;color:var(--green);" data-a="toggle-lock" data-id="${e.id}" title="Fermer"><i class="ph-bold ph-lock-key-open"></i></button>`;
+
   return `<div class="card ${past ? 'past' : ''}">
     <div class="card-flex">
         <div class="event-thumb" style="background:${theme.color}; width:50px; height:50px; font-size:24px;">${theme.emoji}</div>
         <div class="event-info">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
-              <span class="badge ${past ? 'gray' : ''}"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
+              <span class="badge ${past ? 'gray' : (closed ? 'red' : '')}"><i class="ph-fill ph-calendar-blank"></i>${esc(cap(fmtDate(e.date)))}</span>
               <div style="display:flex; gap:6px;">
+                  ${lockBtn}
                   <button class="icon-action" style="background:#eef2fb;color:var(--blue);" data-a="edit-event" data-id="${e.id}"><i class="ph-bold ph-pencil-simple"></i></button>
-                  <button class="icon-action" style="background:#fee2e2;color:var(--red);" data-a="delete-event" data-id="${e.id}"><i class="ph-bold ph-trash"></i></button>
+                  <button class="icon-action" style="background:#f1f5f9;color:var(--muted);" data-a="delete-event" data-id="${e.id}"><i class="ph-bold ph-trash"></i></button>
               </div>
             </div>
             <h3>${esc(e.titre)}</h3>
@@ -393,6 +510,13 @@ function adminCard(e) {
             </div>
         </div>
     </div>
+    ${max > 0 ? `
+    <div style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; font-size:12px; font-weight:800; color:var(--muted);">
+        <span>Jauge: ${n} / ${max}</span>
+        <div style="height:6px; flex:1; margin:0 10px; background:#e2e8f0; border-radius:99px; overflow:hidden;">
+            <div style="height:100%; width:${Math.min(100, (n/max)*100)}%; background:${closed || n>=max ? 'var(--red)' : 'var(--blue)'};"></div>
+        </div>
+    </div>` : ''}
     <div class="inscrits-chip" data-a="open-detail" data-id="${e.id}">
       <span><i class="ph-fill ph-users"></i> <b>${n}</b> inscrit${n>1?'s':''}</span>
       <span style="font-size:13px;color:var(--blue)">Ouvrir la liste <i class="ph-bold ph-caret-right"></i></span>
@@ -424,6 +548,12 @@ const vAdmin = () => {
             <div class="field"><label>Titre de l'événement</label><input class="input" id="e-titre" required placeholder="Ex: Cross départemental"></div>
             <div class="grid2"><div class="field"><label>Date</label><input class="input" id="e-date" type="date" required></div><div class="field"><label>Heure RDV</label><input class="input" id="e-heure" type="time"></div></div>
             <div class="field"><label>Lieu</label><input class="input" id="e-lieu" required placeholder="Ex: Stade Bécavin"></div>
+            <div class="grid2">
+                <div class="field"><label>Places max (0 = illimité)</label><input class="input" id="e-places" type="number" min="0" value="0"></div>
+                <div class="field"><label>État initial</label>
+                    <select class="input" id="e-locked"><option value="false">Inscriptions Ouvertes</option><option value="true">Inscriptions Fermées</option></select>
+                </div>
+            </div>
             <div class="field"><label>Lien Edunuage (Galerie Photos)</label><input class="input" id="e-link" type="url" placeholder="https://edunuage.ac-poitiers.fr/..."></div>
             <div class="field"><label>Informations Complémentaires</label><textarea class="input" id="e-desc" rows="3" placeholder="Tenue de rechange, pique-nique..."></textarea></div>
             
@@ -436,7 +566,20 @@ const vAdmin = () => {
                 <button class="btn btn-primary" type="submit" style="margin-top:12px">Ajouter au calendrier <i class="ph-bold ph-arrow-right"></i></button>
             `}
           </form>
-        </div>`;
+        </div>
+        
+        ${!isEditing ? `
+        <div class="form-card">
+          <h2 style="font-size:20px;font-weight:800;margin-bottom:20px; color:var(--navy);"><i class="ph-fill ph-paint-brush" style="color:var(--orange)"></i> Personnalisation App</h2>
+          <form id="settings-form">
+            <div class="field"><label>Nom de l'AS</label><input class="input" id="s-nom" value="${esc(S.appSettings?.nomAS || 'AS Claudie Haigneré')}"></div>
+            <div class="field"><label>Logo de l'AS (Image PNG/JPG)</label>
+              <input class="input" type="file" id="s-logo" accept="image/*" style="padding:10px;">
+              <small style="color:var(--muted);display:block;margin-top:6px;">Laissez vide pour conserver l'actuel.</small>
+            </div>
+            <button class="btn btn-primary" type="submit" style="margin-top:12px">Enregistrer le design</button>
+          </form>
+        </div>` : ''}`;
   }
 
   const list = S.tab === 'archives' ? pastEvents() : upcomingEvents();
@@ -462,7 +605,6 @@ function renderSheet() {
   people.forEach(p => {
       const sx = p.sexe === 'F' ? 'F' : 'G';
       let cat = '';
-      
       if (p.dateNaissance) {
           const birthYear = parseInt(p.dateNaissance.split('-')[0], 10);
           const diff = refYear - birthYear;
@@ -554,6 +696,11 @@ document.addEventListener('click', async (ev) => {
       if(a === 'close-detail') { S.detailId = null; try{render()}catch(e){} }
       if(a === 'open-detail') { S.detailId = id; try{render()}catch(e){} }
       
+      if(a === 'toggle-lock') {
+          const e = S.events.find(x => x.id === id);
+          if(e) { await updateDoc(dref('evenements', id), { inscriptionsClosed: !e.inscriptionsClosed }); toast(e.inscriptionsClosed ? 'Inscriptions rouvertes' : 'Inscriptions fermées'); }
+      }
+      
       if(a === 'edit-event') {
           const evtToEdit = S.events.find(x => x.id === id);
           if (evtToEdit) {
@@ -568,6 +715,8 @@ document.addEventListener('click', async (ev) => {
                   if(document.getElementById('e-lieu')) document.getElementById('e-lieu').value = evtToEdit.lieu || '';
                   if(document.getElementById('e-desc')) document.getElementById('e-desc').value = evtToEdit.description || '';
                   if(document.getElementById('e-link')) document.getElementById('e-link').value = evtToEdit.edunuageLink || '';
+                  if(document.getElementById('e-places')) document.getElementById('e-places').value = evtToEdit.places || 0;
+                  if(document.getElementById('e-locked')) document.getElementById('e-locked').value = evtToEdit.inscriptionsClosed ? 'true' : 'false';
               }, 50);
           }
       }
@@ -655,6 +804,7 @@ document.addEventListener('click', async (ev) => {
                               lieu: lieu,
                               description: theme,
                               places: 0,
+                              inscriptionsClosed: false,
                               isPast: false,
                               createdAt: Date.now()
                           });
@@ -679,11 +829,36 @@ document.addEventListener('submit', async (ev) => {
   const form = ev.target, btn = form.querySelector('button[type="submit"]');
   const initialBtnHTML = btn.innerHTML;
   btn.innerHTML = '<span class="spin"></span>';
+  
   try {
+    if (form.id === 'settings-form') {
+        const nom = document.getElementById('s-nom').value.trim();
+        const fileInput = document.getElementById('s-logo');
+        
+        let newSettings = { ...S.appSettings, nomAS: nom };
+        
+        if (fileInput.files && fileInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                newSettings.logoBase64 = e.target.result;
+                await setDoc(dref('settings', 'global'), newSettings);
+                toast('Design mis à jour !');
+                btn.innerHTML = initialBtnHTML;
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            await setDoc(dref('settings', 'global'), newSettings);
+            toast('Nom mis à jour !');
+            btn.innerHTML = initialBtnHTML;
+        }
+        return;
+    }
+      
     if (form.id === 'login-form') {
       await signInWithEmailAndPassword(auth, document.getElementById('l-email').value.trim(), document.getElementById('l-pwd').value);
       toast('Connexion réussie !');
     }
+    
     if (form.id === 'register-form') {
       const email = document.getElementById('r-email').value.trim();
       const data = {
@@ -697,6 +872,7 @@ document.addEventListener('submit', async (ev) => {
       await setDoc(dref('utilisateurs', cred.user.uid), data);
       toast(`Bienvenue ${data.prenom} !`);
     }
+    
     if (form.id === 'event-form') {
       const eventData = {
         titre: document.getElementById('e-titre').value.trim(), 
@@ -704,6 +880,8 @@ document.addEventListener('submit', async (ev) => {
         heure: document.getElementById('e-heure').value, 
         lieu: document.getElementById('e-lieu').value.trim(),
         description: document.getElementById('e-desc').value.trim(), 
+        places: parseInt(document.getElementById('e-places').value) || 0,
+        inscriptionsClosed: document.getElementById('e-locked').value === 'true',
         edunuageLink: document.getElementById('e-link') ? document.getElementById('e-link').value.trim() : ''
       };
 
@@ -712,7 +890,6 @@ document.addEventListener('submit', async (ev) => {
           toast('Événement modifié !');
           S.editId = null;
       } else {
-          eventData.places = 0; 
           eventData.isPast = false; 
           eventData.createdAt = Date.now();
           await addDoc(col('evenements'), eventData);
