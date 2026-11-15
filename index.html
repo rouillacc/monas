@@ -219,7 +219,7 @@ const dref = (name, id) => doc(db, 'artifacts', 'as-claudie-haignere', 'public',
 
 const S = {
   view: 'loading', tab: 'upcoming', user: null, profile: null, isAdmin: false,
-  events: [], inscriptions: [], users: [], appelSessions: [], unsubs: [], detailId: null, editId: null, appSettings: {}
+  events: [], inscriptions: [], users: [], appelSessions: [], unsubs: [], detailId: null, editId: null, appSettings: {}, rosterAppel: []
 };
 
 const $view = document.getElementById('view');
@@ -287,6 +287,7 @@ window.toast = function(msg, type = 'success') {
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 2800);
 }
 
+// GESTION APPEL ET SYNCHRO
 window.closeAppelMode = function() { 
     document.getElementById('appel-overlay').style.display = 'none'; 
     if(S.isAdmin) importAppelsToInscriptions();
@@ -315,7 +316,11 @@ async function importAppelsToInscriptions() {
                             if(studentInAppel) {
                                 const nom = (studentInAppel.lastname || '').toLowerCase().trim();
                                 const prenom = (studentInAppel.firstname || '').toLowerCase().trim();
-                                const asUser = S.users.find(u => (u.nom || '').toLowerCase().trim() === nom && (u.prenom || '').toLowerCase().trim() === prenom);
+                                // Recherche par ID forcé OU correspondance nom/prénom
+                                const asUser = S.users.find(u => 
+                                    (u.appelId === studentAppelId) ||
+                                    ((u.nom || '').toLowerCase().trim() === nom && (u.prenom || '').toLowerCase().trim() === prenom)
+                                );
                                 
                                 if(asUser) {
                                     const regId = `${matchingEvent.id}_${asUser.id}`;
@@ -366,6 +371,11 @@ onAuthStateChanged(auth, async (user) => {
       S.profile = { role:'admin', prenom:'Admin', nom:'EPS' };
   } else {
       const snap = await getDoc(dref('utilisateurs', user.uid));
+      if (!snap.exists()) {
+          await signOut(auth);
+          toast('Ton compte a été supprimé par un professeur.', 'error');
+          return;
+      }
       S.profile = snap.data();
   }
   S.view = S.isAdmin ? 'admin' : 'student';
@@ -619,6 +629,27 @@ const vAdmin = () => {
         </div>
         
         ${!isEditing ? `
+        <!-- NOUVEAU BLOC : GESTION DES COMPTES ELÈVES -->
+        <div class="form-card">
+          <h2 style="font-size:20px;font-weight:800;margin-bottom:16px; color:var(--as-black);"><i class="ph-fill ph-users" style="color:var(--blue)"></i> Comptes Élèves</h2>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Associez manuellement un élève à la liste d'appel en cas d'erreur de saisie, ou supprimez un compte.</p>
+          <div style="display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; padding-right:4px;">
+              ${S.users.filter(u=>u.role!=='admin').sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map(u => `
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:var(--as-gray); padding:12px; border-radius:16px; border:1px solid var(--line);">
+                      <div>
+                          <b style="display:block; font-size:15px; color:var(--text);">${esc((u.nom||'').toUpperCase())} ${esc(u.prenom)}</b>
+                          <span style="font-size:12px; color:var(--muted)">Cl. ${esc(u.classe)} ${u.appelId ? '<b style="color:var(--green-status);margin-left:6px;">✓ Lié</b>' : ''}</span>
+                      </div>
+                      <div style="display:flex; gap:6px;">
+                          <button class="icon-action" style="background:#eef2fb;color:var(--blue);" data-a="link-user" data-uid="${u.id}" title="Lier avec Appel"><i class="ph-bold ph-link"></i></button>
+                          <button class="icon-action" style="background:#fee2e2;color:var(--red);" data-a="delete-user" data-uid="${u.id}" title="Supprimer compte"><i class="ph-bold ph-trash"></i></button>
+                      </div>
+                  </div>
+              `).join('')}
+              ${S.users.filter(u=>u.role!=='admin').length === 0 ? `<div class="empty" style="padding:20px;">Aucun compte élève.</div>` : ''}
+          </div>
+        </div>
+        
         <div class="form-card">
           <h2 style="font-size:20px;font-weight:800;margin-bottom:20px; color:var(--as-black);"><i class="ph-fill ph-paint-brush" style="color:var(--orange)"></i> Personnalisation App</h2>
           <form id="settings-form">
@@ -743,6 +774,8 @@ document.addEventListener('click', async (ev) => {
   const btn = ev.target.closest('[data-a]');
   if(btn) {
       const a = btn.dataset.a, id = btn.dataset.id;
+      const uid = btn.dataset.uid; // ID specifique au compte utilisateur si clic dans la liste des profils
+
       if(a === 'close-detail') { S.detailId = null; try{render()}catch(e){} }
       if(a === 'open-detail') { S.detailId = id; try{render()}catch(e){} }
       
@@ -771,6 +804,75 @@ document.addEventListener('click', async (ev) => {
                   if(document.getElementById('e-locked')) document.getElementById('e-locked').value = evtToEdit.inscriptionsClosed ? 'true' : 'false';
               }, 50);
           }
+      }
+
+      // --- NOUVEAUTÉ : SUPPRESSION D'UN COMPTE ---
+      if(a === 'delete-user') {
+          const u = S.users.find(x => x.id === uid);
+          if(u && confirm(`Supprimer définitivement le compte de ${u.prenom} ${u.nom} ?\n\n(Toutes ses inscriptions seront effacées pour libérer la place)`)) {
+              try {
+                  const inscripts = S.inscriptions.filter(i => i.userId === uid);
+                  const batch = writeBatch(db);
+                  batch.delete(dref('utilisateurs', uid));
+                  inscripts.forEach(i => batch.delete(dref('inscriptions', i.id)));
+                  await batch.commit();
+                  toast('Compte élève supprimé');
+              } catch(err) {
+                  console.error(err);
+                  toast('Erreur de suppression', 'error');
+              }
+          }
+      }
+
+      // --- NOUVEAUTÉ : RAPPROCHEMENT COMPTE AVEC L'APPEL ---
+      if(a === 'link-user') {
+          // Si la liste d'appel (roster) n'a pas encore été chargée depuis Firestore, on la télécharge
+          if(S.rosterAppel.length === 0) {
+              const dbAppel = getFirestore(app); 
+              const appelsRef = collection(dbAppel, 'appelas');
+              const snap = await getDocs(appelsRef);
+              let full = [];
+              snap.forEach(d => { if(d.data().roster) full = full.concat(d.data().roster); });
+              S.rosterAppel = full.sort((a,b)=>a.lastname.localeCompare(b.lastname));
+          }
+          
+          const options = S.rosterAppel.map(r => `<option value="${r.id}">${esc(r.lastname.toUpperCase())} ${esc(r.firstname)} (${esc(r.class)})</option>`).join('');
+          
+          // Création d'une petite popup propre par dessus tout
+          const overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed; inset:0; background:rgba(17,24,39,.6); z-index:9999; backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center;';
+          overlay.innerHTML = `
+            <div style="background:#fff; padding:24px; border-radius:24px; width:90%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+               <h3 style="margin-bottom:12px;font-size:18px;font-weight:800;color:var(--navy);">Lier le compte AS</h3>
+               <p style="font-size:13px; color:var(--muted); margin-bottom:16px;line-height:1.4;">Pour garantir le pointage automatique, veuillez sélectionner l'identité exacte de cet élève telle qu'elle apparait dans votre base "Appel".</p>
+               <select id="roster-select" class="input" style="margin-bottom:20px;">
+                  <option value="">-- Sélectionner l'élève --</option>
+                  ${options}
+               </select>
+               <div style="display:flex; gap:10px;">
+                  <button class="btn btn-ghost" id="cancel-link">Annuler</button>
+                  <button class="btn btn-primary" id="confirm-link-btn">Associer</button>
+               </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          
+          document.getElementById('cancel-link').onclick = () => overlay.remove();
+          document.getElementById('confirm-link-btn').onclick = async () => {
+              const selectedId = document.getElementById('roster-select').value;
+              if(!selectedId) return toast('Veuillez sélectionner un élève', 'error');
+              
+              overlay.querySelector('#confirm-link-btn').innerHTML = '<span class="spin"></span>';
+              try {
+                  await updateDoc(dref('utilisateurs', uid), { appelId: selectedId });
+                  toast('Compte lié avec succès !');
+                  overlay.remove();
+              } catch(err) {
+                  console.error(err);
+                  toast('Erreur de liaison', 'error');
+                  overlay.querySelector('#confirm-link-btn').innerHTML = 'Associer';
+              }
+          };
       }
       
       if(a === 'register' || a === 'unregister') {
