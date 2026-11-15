@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>AS Collège Claudie Haigneré</title>
 <link rel="manifest" href="manifest.json">
+<!-- ICÔNE -->
 <link rel="icon" id="app-favicon" href="1000203112.jpg">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -80,6 +81,7 @@ main::-webkit-scrollbar{width:0}
 .desc{margin-top:14px;background:var(--as-gray);border-radius:14px;padding:14px;font-size:14px;color:var(--as-black);line-height:1.5;}
 .registered-stripe{position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--orange)}
 
+/* Jauge */
 .gauge{margin-top:16px; margin-bottom:4px;}
 .gauge-top{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;color:var(--as-black);}
 .gauge-bar{height:12px;border-radius:99px;background:var(--line);overflow:hidden; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05);}
@@ -165,6 +167,7 @@ nav button.active i{transform:scale(1.15)}
   <nav id="nav" class="hidden"></nav>
   <div id="toasts"></div>
   
+  <!-- BANDEAU D'INSTALLATION PWA -->
   <div id="install-banner" style="display:none; position:fixed; top:20px; left:16px; right:16px; background:var(--as-black); color:#fff; padding:16px; border-radius:24px; box-shadow:0 12px 30px rgba(0,0,0,0.4); z-index:9999; flex-direction:column; gap:14px; animation:slideIn 0.4s;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div style="display:flex; gap:12px; align-items:center;">
@@ -200,7 +203,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-const firebaseConfig = {
+// INSTANCE FIREBASE 1 : AS CLAUDIE HAIGNERÉ
+const firebaseConfigAS = {
   apiKey: "AIzaSyB475MQ5DD_xXZlVHKDbcrPcciLSr7FGto",
   authDomain: "cdm-rouillac.firebaseapp.com",
   projectId: "cdm-rouillac",
@@ -208,9 +212,21 @@ const firebaseConfig = {
   messagingSenderId: "650773834321",
   appId: "1:650773834321:web:a9c5a348f65fcf46b82670"
 };
-const app  = initializeApp(firebaseConfig);
-const db   = getFirestore(app);
-const auth = getAuth(app);
+const appAS = initializeApp(firebaseConfigAS, "ASApp");
+const db = getFirestore(appAS);
+const auth = getAuth(appAS);
+
+// INSTANCE FIREBASE 2 : APPEL AS (La passerelle)
+const firebaseConfigAppel = {
+  apiKey: "AIzaSyCmV2E6dhnXPDNjjMkVQHI8IH2nXKQByvc",
+  authDomain: "appel-as.firebaseapp.com",
+  projectId: "appel-as",
+  storageBucket: "appel-as.firebasestorage.app",
+  messagingSenderId: "943879688117",
+  appId: "1:943879688117:web:0b4b35465d40cac4ff13fc"
+};
+const appAppel = initializeApp(firebaseConfigAppel, "AppelApp");
+const dbAppel = getFirestore(appAppel);
 
 const ADMIN_EMAIL = 'epsclaudie@gmail.com';
 const ACCESS_CODE = 'Rouillac16';
@@ -219,7 +235,7 @@ const dref = (name, id) => doc(db, 'artifacts', 'as-claudie-haignere', 'public',
 
 const S = {
   view: 'loading', tab: 'upcoming', user: null, profile: null, isAdmin: false,
-  events: [], inscriptions: [], users: [], appelSessions: [], unsubs: [], detailId: null, editId: null, appSettings: {}, rosterAppel: []
+  events: [], inscriptions: [], users: [], appelSessions: [], unsubs: [], detailId: null, editId: null, rosterAppel: []
 };
 
 const $view = document.getElementById('view');
@@ -252,6 +268,7 @@ const galleryEvents = () => pastEvents().filter(e => e.edunuageLink && e.edunuag
 
 function getEventTheme(titre, desc = '') {
     const text = (titre + ' ' + desc).toLowerCase();
+    
     if (text.includes('futsal') || text.includes('foot')) return { emoji: '⚽', color: 'linear-gradient(135deg, #059669, #047857)' };
     if (text.includes('basket')) return { emoji: '🏀', color: 'linear-gradient(135deg, #d97706, #b45309)' };
     if (text.includes('hand')) return { emoji: '🤾', color: 'linear-gradient(135deg, #0284c7, #0369a1)' };
@@ -287,7 +304,6 @@ window.toast = function(msg, type = 'success') {
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 2800);
 }
 
-// GESTION APPEL ET SYNCHRO
 window.closeAppelMode = function() { 
     document.getElementById('appel-overlay').style.display = 'none'; 
     if(S.isAdmin) importAppelsToInscriptions();
@@ -297,7 +313,6 @@ window.openAppelMode = function() { document.getElementById('appel-overlay').sty
 async function importAppelsToInscriptions() {
     if(!S.isAdmin) return;
     try {
-        const dbAppel = getFirestore(app); 
         const appelsRef = collection(dbAppel, 'appelas');
         const snap = await getDocs(appelsRef);
         let countImported = 0;
@@ -316,9 +331,9 @@ async function importAppelsToInscriptions() {
                             if(studentInAppel) {
                                 const nom = (studentInAppel.lastname || '').toLowerCase().trim();
                                 const prenom = (studentInAppel.firstname || '').toLowerCase().trim();
-                                // Recherche par ID forcé OU correspondance nom/prénom
+                                
                                 const asUser = S.users.find(u => 
-                                    (u.appelId === studentAppelId) ||
+                                    (u.appelId === studentAppelId) || 
                                     ((u.nom || '').toLowerCase().trim() === nom && (u.prenom || '').toLowerCase().trim() === prenom)
                                 );
                                 
@@ -339,29 +354,10 @@ async function importAppelsToInscriptions() {
     } catch(err) { console.log(err); }
 }
 
-function updateBrandDisplay() {
-    if(S.appSettings.logoBase64) {
-        document.getElementById('header-logo').innerHTML = `<img src="${S.appSettings.logoBase64}" alt="Logo">`;
-        document.getElementById('app-favicon').href = S.appSettings.logoBase64;
-    }
-    if(S.appSettings.nomAS) {
-        const parts = S.appSettings.nomAS.split(' ');
-        if(parts.length > 1) {
-            const first = parts.shift();
-            document.getElementById('header-title').innerHTML = `${esc(first)}<br><span>${esc(parts.join(' '))}</span>`;
-        } else {
-            document.getElementById('header-title').innerHTML = esc(S.appSettings.nomAS);
-        }
-        document.title = S.appSettings.nomAS;
-    }
-}
-
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     S.unsubs.forEach(u => u()); S.unsubs = [];
     Object.assign(S, { user:null, profile:null, isAdmin:false, tab:'upcoming', view:'guard' });
-    const setSnap = await getDoc(dref('settings', 'global')).catch(()=>null);
-    if(setSnap && setSnap.exists()) { S.appSettings = setSnap.data(); updateBrandDisplay(); }
     try { render(); } catch(e) {}
     return;
   }
@@ -382,7 +378,6 @@ onAuthStateChanged(auth, async (user) => {
   S.unsubs.push(onSnapshot(col('evenements'), s => { S.events = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
   S.unsubs.push(onSnapshot(col('inscriptions'), s => { S.inscriptions = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
   S.unsubs.push(onSnapshot(col('utilisateurs'), s => { S.users = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
-  S.unsubs.push(onSnapshot(dref('settings', 'global'), s => { if(s.exists()){ S.appSettings = s.data(); updateBrandDisplay(); } }));
   try{render()}catch(e){}
 });
 
@@ -392,12 +387,6 @@ function render() {
 
   if(S.view === 'guard') {
       $view.innerHTML = `<div class="hero"><div class="hero-icon" id="hero-logo-large"><img src="1000203112.jpg" alt="Logo"></div><h2 id="hero-title-large">Accès Collège</h2><p style="color:var(--muted); font-weight:600; margin-bottom:24px;">Entre le code de l'AS fourni par les professeurs.</p><div style="width:100%;max-width:300px"><input id="guard-input" class="input code-input" placeholder="CODE"><button class="btn btn-primary" onclick="checkCode()" style="margin-top:16px">Valider l'accès</button><button class="link" onclick="showLogin()" style="margin-top:16px;width:100%">J'ai déjà un compte · Connexion</button></div></div>`;
-      if(S.appSettings.logoBase64) {
-          setTimeout(() => {
-              if(document.getElementById('hero-logo-large')) document.getElementById('hero-logo-large').innerHTML = `<img src="${S.appSettings.logoBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:32px;">`;
-              if(S.appSettings.nomAS && document.getElementById('hero-title-large')) document.getElementById('hero-title-large').innerText = S.appSettings.nomAS;
-          }, 50);
-      }
   }
   
   if(S.view === 'login') $view.innerHTML = `<div class="hero" style="padding-top:8px"><div class="form-card" style="width:100%"><h2 style="font-size:24px;font-weight:800;margin-bottom:24px;text-align:left;color:var(--as-black);"><i class="ph-fill ph-sign-in" style="color:var(--as-green); vertical-align:-3px;"></i> Connexion</h2><form id="login-form" style="text-align:left"><div class="field"><label>Email</label><input class="input" id="l-email" type="email" required></div><div class="field"><label>Mot de passe</label><input class="input" id="l-pwd" type="password" required></div><button class="btn btn-primary" type="submit" style="margin-top:24px;">Se connecter</button></form><button class="link" onclick="showGuard()" style="margin-top:16px"><i class="ph-bold ph-arrow-left"></i> Retour</button></div></div>`;
@@ -561,7 +550,7 @@ function adminCard(e) {
 
     <div class="inscrits-chip" data-a="open-detail" data-id="${e.id}">
       <span><i class="ph-fill ph-users"></i> <b>${n}</b> inscrit${n>1?'s':''}</span>
-      <span style="font-size:13px;color:var(--as-green)">Ouvrir la liste <i class="ph-bold ph-caret-right"></i></span>
+      <span style="font-size:13px;color:var(--blue)">Ouvrir la liste <i class="ph-bold ph-caret-right"></i></span>
     </div>
   </div>`;
 }
@@ -629,7 +618,6 @@ const vAdmin = () => {
         </div>
         
         ${!isEditing ? `
-        <!-- NOUVEAU BLOC : GESTION DES COMPTES ELÈVES -->
         <div class="form-card">
           <h2 style="font-size:20px;font-weight:800;margin-bottom:16px; color:var(--as-black);"><i class="ph-fill ph-users" style="color:var(--blue)"></i> Comptes Élèves</h2>
           <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Associez manuellement un élève à la liste d'appel en cas d'erreur de saisie, ou supprimez un compte.</p>
@@ -648,18 +636,6 @@ const vAdmin = () => {
               `).join('')}
               ${S.users.filter(u=>u.role!=='admin').length === 0 ? `<div class="empty" style="padding:20px;">Aucun compte élève.</div>` : ''}
           </div>
-        </div>
-        
-        <div class="form-card">
-          <h2 style="font-size:20px;font-weight:800;margin-bottom:20px; color:var(--as-black);"><i class="ph-fill ph-paint-brush" style="color:var(--orange)"></i> Personnalisation App</h2>
-          <form id="settings-form">
-            <div class="field"><label>Nom de l'AS</label><input class="input" id="s-nom" value="${esc(S.appSettings?.nomAS || 'AS Claudie Haigneré')}"></div>
-            <div class="field"><label>Logo de l'AS (Image PNG/JPG)</label>
-              <input class="input" type="file" id="s-logo" accept="image/*" style="padding:10px;">
-              <small style="color:var(--muted);display:block;margin-top:6px;">Laissez vide pour conserver l'actuel.</small>
-            </div>
-            <button class="btn btn-primary" type="submit" style="margin-top:12px">Enregistrer le design</button>
-          </form>
         </div>` : ''}`;
   }
 
@@ -774,7 +750,7 @@ document.addEventListener('click', async (ev) => {
   const btn = ev.target.closest('[data-a]');
   if(btn) {
       const a = btn.dataset.a, id = btn.dataset.id;
-      const uid = btn.dataset.uid; // ID specifique au compte utilisateur si clic dans la liste des profils
+      const uid = btn.dataset.uid; 
 
       if(a === 'close-detail') { S.detailId = null; try{render()}catch(e){} }
       if(a === 'open-detail') { S.detailId = id; try{render()}catch(e){} }
@@ -806,7 +782,6 @@ document.addEventListener('click', async (ev) => {
           }
       }
 
-      // --- NOUVEAUTÉ : SUPPRESSION D'UN COMPTE ---
       if(a === 'delete-user') {
           const u = S.users.find(x => x.id === uid);
           if(u && confirm(`Supprimer définitivement le compte de ${u.prenom} ${u.nom} ?\n\n(Toutes ses inscriptions seront effacées pour libérer la place)`)) {
@@ -824,55 +799,62 @@ document.addEventListener('click', async (ev) => {
           }
       }
 
-      // --- NOUVEAUTÉ : RAPPROCHEMENT COMPTE AVEC L'APPEL ---
       if(a === 'link-user') {
-          // Si la liste d'appel (roster) n'a pas encore été chargée depuis Firestore, on la télécharge
-          if(S.rosterAppel.length === 0) {
-              const dbAppel = getFirestore(app); 
-              const appelsRef = collection(dbAppel, 'appelas');
-              const snap = await getDocs(appelsRef);
-              let full = [];
-              snap.forEach(d => { if(d.data().roster) full = full.concat(d.data().roster); });
-              S.rosterAppel = full.sort((a,b)=>a.lastname.localeCompare(b.lastname));
-          }
+          const btnLink = ev.target.closest('button');
+          const initialHtml = btnLink.innerHTML;
+          btnLink.innerHTML = '<span class="spin" style="width:16px;height:16px;border-width:2px;border-top-color:var(--blue);"></span>';
           
-          const options = S.rosterAppel.map(r => `<option value="${r.id}">${esc(r.lastname.toUpperCase())} ${esc(r.firstname)} (${esc(r.class)})</option>`).join('');
-          
-          // Création d'une petite popup propre par dessus tout
-          const overlay = document.createElement('div');
-          overlay.style.cssText = 'position:fixed; inset:0; background:rgba(17,24,39,.6); z-index:9999; backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center;';
-          overlay.innerHTML = `
-            <div style="background:#fff; padding:24px; border-radius:24px; width:90%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-               <h3 style="margin-bottom:12px;font-size:18px;font-weight:800;color:var(--navy);">Lier le compte AS</h3>
-               <p style="font-size:13px; color:var(--muted); margin-bottom:16px;line-height:1.4;">Pour garantir le pointage automatique, veuillez sélectionner l'identité exacte de cet élève telle qu'elle apparait dans votre base "Appel".</p>
-               <select id="roster-select" class="input" style="margin-bottom:20px;">
-                  <option value="">-- Sélectionner l'élève --</option>
-                  ${options}
-               </select>
-               <div style="display:flex; gap:10px;">
-                  <button class="btn btn-ghost" id="cancel-link">Annuler</button>
-                  <button class="btn btn-primary" id="confirm-link-btn">Associer</button>
-               </div>
-            </div>
-          `;
-          document.body.appendChild(overlay);
-          
-          document.getElementById('cancel-link').onclick = () => overlay.remove();
-          document.getElementById('confirm-link-btn').onclick = async () => {
-              const selectedId = document.getElementById('roster-select').value;
-              if(!selectedId) return toast('Veuillez sélectionner un élève', 'error');
-              
-              overlay.querySelector('#confirm-link-btn').innerHTML = '<span class="spin"></span>';
-              try {
-                  await updateDoc(dref('utilisateurs', uid), { appelId: selectedId });
-                  toast('Compte lié avec succès !');
-                  overlay.remove();
-              } catch(err) {
-                  console.error(err);
-                  toast('Erreur de liaison', 'error');
-                  overlay.querySelector('#confirm-link-btn').innerHTML = 'Associer';
+          try {
+              if(S.rosterAppel.length === 0) {
+                  const appelsRef = collection(dbAppel, 'appelas');
+                  const snap = await getDocs(appelsRef);
+                  let full = [];
+                  snap.forEach(d => { if(d.data().roster) full = full.concat(d.data().roster); });
+                  S.rosterAppel = full.sort((a,b)=>a.lastname.localeCompare(b.lastname));
               }
-          };
+              
+              const options = S.rosterAppel.map(r => `<option value="${r.id}">${esc(r.lastname.toUpperCase())} ${esc(r.firstname)} (${esc(r.class)})</option>`).join('');
+              
+              const overlay = document.createElement('div');
+              overlay.style.cssText = 'position:fixed; inset:0; background:rgba(17,24,39,.6); z-index:9999; backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center;';
+              overlay.innerHTML = `
+                <div style="background:#fff; padding:24px; border-radius:24px; width:90%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+                   <h3 style="margin-bottom:12px;font-size:18px;font-weight:800;color:var(--navy);">Lier le compte AS</h3>
+                   <p style="font-size:13px; color:var(--muted); margin-bottom:16px;line-height:1.4;">Sélectionnez l'identité exacte de cet élève telle qu'elle apparait dans votre base "Appel".</p>
+                   <select id="roster-select" class="input" style="margin-bottom:20px; color:var(--text); background:var(--as-gray);">
+                      <option value="">-- Sélectionner l'élève --</option>
+                      ${options}
+                   </select>
+                   <div style="display:flex; gap:10px;">
+                      <button class="btn btn-ghost" id="cancel-link">Annuler</button>
+                      <button class="btn btn-primary" id="confirm-link-btn">Associer</button>
+                   </div>
+                </div>
+              `;
+              document.body.appendChild(overlay);
+              
+              document.getElementById('cancel-link').onclick = () => overlay.remove();
+              document.getElementById('confirm-link-btn').onclick = async () => {
+                  const selectedId = document.getElementById('roster-select').value;
+                  if(!selectedId) return toast('Veuillez sélectionner un élève', 'error');
+                  
+                  overlay.querySelector('#confirm-link-btn').innerHTML = '<span class="spin"></span>';
+                  try {
+                      await updateDoc(dref('utilisateurs', uid), { appelId: selectedId });
+                      toast('Compte lié avec succès !');
+                      overlay.remove();
+                  } catch(err) {
+                      console.error(err);
+                      toast('Erreur de liaison', 'error');
+                      overlay.querySelector('#confirm-link-btn').innerHTML = 'Associer';
+                  }
+              };
+          } catch (e) {
+              console.error(e);
+              toast('Erreur de connexion à Appel', 'error');
+          } finally {
+              btnLink.innerHTML = initialHtml;
+          }
       }
       
       if(a === 'register' || a === 'unregister') {
@@ -987,29 +969,6 @@ document.addEventListener('submit', async (ev) => {
   btn.innerHTML = '<span class="spin"></span>';
   
   try {
-    if (form.id === 'settings-form') {
-        const nom = document.getElementById('s-nom').value.trim();
-        const fileInput = document.getElementById('s-logo');
-        
-        let newSettings = { ...S.appSettings, nomAS: nom };
-        
-        if (fileInput.files && fileInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                newSettings.logoBase64 = e.target.result;
-                await setDoc(dref('settings', 'global'), newSettings);
-                toast('Design mis à jour !');
-                btn.innerHTML = initialBtnHTML;
-            };
-            reader.readAsDataURL(fileInput.files[0]);
-        } else {
-            await setDoc(dref('settings', 'global'), newSettings);
-            toast('Nom mis à jour !');
-            btn.innerHTML = initialBtnHTML;
-        }
-        return;
-    }
-      
     if (form.id === 'login-form') {
       await signInWithEmailAndPassword(auth, document.getElementById('l-email').value.trim(), document.getElementById('l-pwd').value);
       toast('Connexion réussie !');
