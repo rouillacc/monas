@@ -10,6 +10,7 @@
 <link rel="icon" id="app-favicon" href="1000203112.jpg">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
+<!-- Chargement de jsPDF pour l'export de l'appel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
@@ -139,13 +140,14 @@ nav button.active i{transform:scale(1.15)}
 .inscrits-chip:active{background:#e5e7eb; transform:scale(0.98);}
 
 /* APPEL NATIVE STYLES */
-.student-row { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom:10px;}
+.student-row { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom:10px; transition:0.2s;}
 .st-info strong { display: block; font-size: 16px; color:var(--as-black); }
 .st-info small { color: var(--muted); font-size: 13px; font-weight:600;}
 .p-btn { width: 54px; height: 54px; border-radius: 14px; background: var(--as-gray); font-size: 20px; font-weight: bold; color: var(--muted); display:grid; place-items:center; transition:0.2s; border:2px solid transparent;}
 .p-btn.present { background: var(--as-green-light); color: var(--as-green-dark); border-color:var(--as-green); }
 .p-btn:active{transform:scale(0.9)}
 .status-bar { display: flex; justify-content: space-between; align-items: center; background: var(--as-black); color:white; padding: 16px 20px; border-radius: 16px; margin-bottom: 16px; font-weight: 800; font-size:15px; box-shadow:0 8px 20px rgba(0,0,0,0.15);}
+.toolbar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 
 #toasts{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 80px);display:flex;flex-direction:column;align-items:center;gap:10px;z-index:100;pointer-events:none}
 .toast{background:var(--as-black);color:#fff;padding:14px 20px;border-radius:18px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:12px; max-width:90%; box-shadow:0 10px 25px rgba(0,0,0,0.3);}
@@ -170,6 +172,7 @@ nav button.active i{transform:scale(1.15)}
   <nav id="nav" class="hidden"></nav>
   <div id="toasts"></div>
   
+  <!-- BANDEAU D'INSTALLATION PWA -->
   <div id="install-banner" style="display:none; position:fixed; top:20px; left:16px; right:16px; background:var(--as-black); color:#fff; padding:16px; border-radius:24px; box-shadow:0 12px 30px rgba(0,0,0,0.4); z-index:9999; flex-direction:column; gap:14px; animation:slideIn 0.4s;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div style="display:flex; gap:12px; align-items:center;">
@@ -185,12 +188,12 @@ nav button.active i{transform:scale(1.15)}
   </div>
 </div>
 
-<!-- Modal Édition Élève -->
+<!-- Modal Édition Élèves (Base Licenciés) -->
 <div id="roster-modal" style="position:fixed;inset:0;background:rgba(17,24,39,.6);z-index:9999;backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this) this.style.display='none'">
   <div style="background:#fff;width:100%;max-width:500px;border-radius:24px;padding:24px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
       <h3 style="font-size:20px;font-weight:800;color:var(--as-black);">👥 Base Licenciés (<span id="roster-total-count">0</span>)</h3>
-      <button onclick="document.getElementById('roster-modal').style.display='none'" style="width:36px;height:36px;background:#fee2e2;color:var(--red);border-radius:50%;font-weight:bold;font-size:20px;">×</button>
+      <button onclick="document.getElementById('roster-modal').style.display='none'" style="width:36px;height:36px;background:#fee2e2;color:var(--red);border-radius:50%;font-weight:bold;font-size:20px;border:none;">×</button>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
@@ -210,7 +213,7 @@ nav button.active i{transform:scale(1.15)}
         📥 Importer CSV Licenciés
         <input type="file" id="csv-file" accept=".csv,text/csv" style="display:none;" onchange="importCSV(event)">
       </label>
-      <small style="color:var(--muted);display:block;margin-top:6px;">Nom ; Prénom ; Classe ; Sexe ; Date Naissance</small>
+      <small style="color:var(--muted);display:block;margin-top:6px;">Format: Nom ; Prénom ; Classe ; Sexe ; Date Naissance</small>
     </div>
   </div>
 </div>
@@ -220,14 +223,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// BASE UNIQUE 
+// BASE DE DONNÉES UNIQUE ET DÉFINITIVE
 const firebaseConfig = {
-  apiKey: "AIzaSyCmV2E6dhnXPDNjjMkVQHI8IH2nXKQByvc",
-  authDomain: "appel-as.firebaseapp.com",
-  projectId: "appel-as",
-  storageBucket: "appel-as.firebasestorage.app",
-  messagingSenderId: "943879688117",
-  appId: "1:943879688117:web:0b4b35465d40cac4ff13fc"
+  apiKey: "AIzaSyB475MQ5DD_xXZlVHKDbcrPcciLSr7FGto",
+  authDomain: "cdm-rouillac.firebaseapp.com",
+  projectId: "cdm-rouillac",
+  storageBucket: "cdm-rouillac.firebasestorage.app",
+  messagingSenderId: "650773834321",
+  appId: "1:650773834321:web:a9c5a348f65fcf46b82670"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -239,12 +242,13 @@ const ACCESS_CODE = 'haignere16';
 
 const C_EVENTS = collection(db, 'as_events');
 const C_INSCRIPT = collection(db, 'as_inscriptions');
-const C_USERS = collection(db, 'as_users'); 
-const C_LICENCIES = collection(db, 'as_licencies'); 
+const C_USERS = collection(db, 'as_users'); // Les comptes de l'appli (mot de passe)
+const C_LICENCIES = collection(db, 'as_licencies'); // La base officielle (pour l'appel et l'âge)
 
 const S = {
   view: 'loading', tab: 'upcoming', user: null, profile: null, isAdmin: false,
-  events: [], inscriptions: [], users: [], licencies: [], unsubs: [], detailId: null, editId: null, appSettings: {}
+  events: [], inscriptions: [], users: [], licencies: [], unsubs: [], detailId: null, editId: null,
+  appelDate: '', appelEventId: ''
 };
 
 const $view = document.getElementById('view');
@@ -321,7 +325,7 @@ onAuthStateChanged(auth, async (user) => {
       const snap = await getDoc(doc(C_USERS, user.uid));
       if (!snap.exists()) {
           await signOut(auth);
-          toast('Ton compte a été supprimé.', 'error');
+          toast('Ton compte a été supprimé par un professeur.', 'error');
           return;
       }
       S.profile = snap.data();
@@ -349,10 +353,10 @@ function render() {
   if(S.view === 'register') {
       const opts = S.licencies.sort((a,b)=> (a.lastname||'').localeCompare(b.lastname||'')).map(r => `<option value="${r.id}">${esc((r.lastname||'').toUpperCase())} ${esc(r.firstname)}</option>`).join('');
       $view.innerHTML = `<div class="form-card"><h2 style="font-size:22px;font-weight:800;margin-bottom:24px;color:var(--as-black);">Création du compte</h2><form id="register-form">
-        <div class="field"><label>Élève Licencié (Cherchez votre nom)</label><select class="input" id="r-appel-id" required>
+        <div class="field"><label>Élève Licencié (Cherchez votre nom)</label><select class="input" id="r-licencie-id" required>
             <option value="">-- Sélectionnez votre nom --</option>${opts}
-        </select><small style="color:var(--muted);display:block;margin-top:4px;">Cette liste provient de la base licenciés.</small></div>
-        <div class="grid2"><div class="field"><label>Tél. d'urgence</label><input class="input" id="r-tel" type="tel" required></div></div>
+        </select><small style="color:var(--muted);display:block;margin-top:4px;">Cette liste provient de la base d'appel officielle.</small></div>
+        <div class="grid2"><div class="field"><label>Tél. d'urgence parents</label><input class="input" id="r-tel" type="tel" required></div></div>
         <div class="field"><label>Email de connexion</label><input class="input" id="r-email" type="email" required></div>
         <div class="field"><label>Mot de passe (6 car. min)</label><input class="input" id="r-pwd" type="password" minlength="6" required></div>
         <button class="btn btn-orange" type="submit" style="margin-top:20px;">Créer mon compte</button></form></div>`;
@@ -371,7 +375,7 @@ function renderNav() {
   if (!S.user) { $nav.classList.add('hidden'); return; }
   $nav.classList.remove('hidden');
   const items = S.isAdmin
-    ? [['upcoming','ph-calendar-check','À venir'], ['appel','ph-clipboard-text','Faire l\'Appel'], ['bilan','ph-chart-bar','Bilan'], ['new','ph-gear','Gestion']]
+    ? [['upcoming','ph-calendar-check','À venir'], ['appel','ph-clipboard-text','Appel'], ['bilan','ph-chart-bar','Bilan'], ['new','ph-gear','Gestion']]
     : [['upcoming','ph-calendar-check','À venir'], ['gallery','ph-images','Galerie Photos']];
   
   $nav.innerHTML = items.map(([id, ic, lb]) => `
@@ -382,10 +386,10 @@ function renderNav() {
 
 const profileHeader = () => {
     let cat = 'Licencié(e)';
-    if(S.profile && S.profile.appelId) {
-        const lic = S.licencies.find(l => l.id === S.profile.appelId);
+    if(S.profile && S.profile.licencieId) {
+        const lic = S.licencies.find(l => l.id === S.profile.licencieId);
         if(lic) {
-            const birthYear = parseInt((lic.birthdate||lic.dateNaissance||'').split('-')[0], 10);
+            const birthYear = parseInt((lic.dateNaissance||'').split('-')[0], 10);
             if(birthYear) {
                 const now = new Date();
                 const refYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1; 
@@ -416,8 +420,8 @@ function gaugeHTML(e, n) {
 }
 
 function studentCard(e) {
-  const myAppelId = S.profile?.appelId;
-  const reg = myAppelId && S.inscriptions.some(i => i.id === `${e.id}_${myAppelId}`);
+  const myLicId = S.profile?.licencieId;
+  const reg = myLicId && S.inscriptions.some(i => i.id === `${e.id}_${myLicId}`);
   
   const theme = getEventTheme(e.titre, e.description || '');
   const n = countFor(e.id);
@@ -539,101 +543,205 @@ function adminCard(e) {
   </div>`;
 }
 
-function renderAppelNatif() {
-    const today = getTodayString();
-    let evts = S.events.filter(e => e.date === today);
+// ----------------------------------------------------
+// NOUVEAU MODULE APPEL NATIF (Fidèle à l'ancienne app)
+// ----------------------------------------------------
+window.onAppelDateChange = () => {
+    const dVal = document.getElementById("appel-date").value;
+    S.appelDate = dVal;
     
-    if(evts.length === 0) {
-        return `<div class="empty"><div style="font-size:40px;margin-bottom:10px;">🏝️</div>Aucun événement AS prévu aujourd'hui.<br><br><small>Revenez le jour de l'événement pour faire l'appel.</small></div>`;
+    // Remplir le selecteur d'événements pour cette date
+    const evts = S.events.filter(e => e.date === dVal);
+    const sel = document.getElementById("appel-event");
+    sel.innerHTML = evts.length === 0 
+        ? `<option value="">-- Aucun événement ce jour --</option>` 
+        : evts.map(e => `<option value="${e.id}">${esc(e.titre)}</option>`).join('');
+    
+    S.appelEventId = sel.value;
+    renderAppelList();
+};
+
+window.onAppelEventChange = () => {
+    S.appelEventId = document.getElementById("appel-event").value;
+    renderAppelList();
+};
+
+window.onAppelClassChange = () => {
+    renderAppelList();
+};
+
+window.renderAppelList = () => {
+    const evtId = S.appelEventId;
+    const listEl = document.getElementById("appel-list-container");
+    const counterEl = document.getElementById("appel-counter");
+    
+    if(!evtId) {
+        listEl.innerHTML = `<div class="empty"><i class="ph ph-calendar-blank"></i>Veuillez sélectionner un événement.</div>`;
+        counterEl.innerText = "0 / 0";
+        return;
     }
     
-    const e = evts[0];
-    const inscritsId = S.inscriptions.filter(i => i.eventId === e.id).map(i => i.userId);
+    const filterClass = document.getElementById("appel-class").value;
+    let students = [...S.licencies].sort((a,b)=> (a.lastname||'').localeCompare(b.lastname||''));
     
-    let html = `<div class="card" style="border:2px solid var(--as-green);">
-        <h3 style="color:var(--as-green); font-size:20px; display:flex; align-items:center; gap:8px;"><i class="ph-fill ph-clipboard-text"></i> Appel : ${esc(e.titre)}</h3>
-        <p style="color:var(--muted); font-size:13px; font-weight:bold;">${esc(fmtDate(today))}</p>
-        <div class="status-bar" style="margin-top:16px;">
-            <span>Élèves Présents</span>
-            <span id="appel-counter">${inscritsId.length} / ${S.licencies.length}</span>
-        </div>
-        <button class="btn btn-primary" onclick="exportAppelPDF('${e.id}')" style="margin-top:12px; min-height:48px;"><i class="ph-bold ph-file-pdf"></i> Exporter PDF des présents</button>
-    </div>
+    if(filterClass) students = students.filter(s => s.class === filterClass);
     
-    <div style="margin-bottom:16px;">
-        <input class="input" type="search" id="search-appel" placeholder="Rechercher un élève..." onkeyup="filterAppel()">
-    </div>
+    const presentsId = S.inscriptions.filter(i => i.eventId === evtId).map(i => i.userId);
     
-    <div style="display:flex; flex-direction:column; gap:10px; padding-bottom:80px;" id="appel-list">`;
+    counterEl.innerText = `${presentsId.length} / ${students.length}`;
     
-    const sortedLicencies = [...S.licencies].sort((a,b)=> (a.lastname||'').localeCompare(b.lastname||''));
-    
-    sortedLicencies.forEach(lic => {
-        const isPresent = inscritsId.includes(lic.id);
-        html += `
-        <div class="student-row appel-item" data-name="${(lic.lastname+' '+lic.firstname).toLowerCase()}" style="${isPresent ? 'border-color:var(--as-green); background:var(--as-green-light);' : ''}">
+    if(students.length === 0) {
+        listEl.innerHTML = `<div class="empty">Aucun élève trouvé pour cette classe.</div>`;
+        return;
+    }
+
+    listEl.innerHTML = students.map(lic => {
+        const isP = presentsId.includes(lic.id);
+        return `
+        <div class="student-row appel-item" style="${isP ? 'border-color:var(--as-green); background:var(--as-green-light);' : ''}">
             <div class="st-info">
                 <strong>${esc((lic.lastname||'').toUpperCase())} ${esc(lic.firstname)}</strong>
                 <small>Classe ${esc(lic.class)}</small>
             </div>
-            <button class="p-btn ${isPresent ? 'present' : ''}" data-a="toggle-appel" data-uid="${lic.id}" data-evt="${e.id}">
-                ${isPresent ? '<i class="ph-bold ph-check"></i>' : 'P'}
+            <button class="p-btn ${isP ? 'present' : ''}" data-a="toggle-appel" data-uid="${lic.id}" data-evt="${evtId}">
+                ${isP ? '<i class="ph-bold ph-check"></i>' : 'P'}
             </button>
         </div>`;
+    }).join("");
+};
+
+window.setAllPresent = async () => {
+    const evtId = S.appelEventId;
+    if(!evtId) return;
+    
+    const filterClass = document.getElementById("appel-class").value;
+    let students = [...S.licencies];
+    if(filterClass) students = students.filter(s => s.class === filterClass);
+    
+    const presentsId = S.inscriptions.filter(i => i.eventId === evtId).map(i => i.userId);
+    
+    const batch = writeBatch(db);
+    let added = 0;
+    
+    students.forEach(lic => {
+        if(!presentsId.includes(lic.id)) {
+            const docId = `${evtId}_${lic.id}`;
+            batch.set(dref('inscriptions', docId), { eventId:evtId, userId:lic.id, timestamp:Date.now() });
+            added++;
+        }
     });
     
-    html += `</div>`;
+    if(added > 0) {
+        await batch.commit();
+        toast(`${added} présences ajoutées`);
+    }
+};
+
+window.clearCurrentAppel = async () => {
+    const evtId = S.appelEventId;
+    if(!evtId) return;
+    if(confirm("Effacer toutes les présences pour cet événement ?")) {
+        const toDelete = S.inscriptions.filter(i => i.eventId === evtId);
+        const batch = writeBatch(db);
+        toDelete.forEach(i => batch.delete(dref('inscriptions', i.id)));
+        await batch.commit();
+        toast("Appel effacé");
+    }
+};
+
+window.exportAppelPDF = () => {
+    const evtId = S.appelEventId;
+    if(!evtId) return toast("Aucun événement sélectionné", "error");
     
-    window.filterAppel = () => {
-        const term = document.getElementById('search-appel').value.toLowerCase();
-        document.querySelectorAll('.appel-item').forEach(el => {
-            if(el.dataset.name.includes(term)) el.style.display = 'flex';
-            else el.style.display = 'none';
-        });
-    };
-
-    window.exportAppelPDF = (eventId) => {
-        const evt = S.events.find(x => x.id === eventId);
-        if(!evt) return;
-        const presents = S.inscriptions.filter(i => i.eventId === eventId).map(i => i.userId);
-        const presentSt = S.licencies.filter(x => presents.includes(x.id)).sort((a,b) => (a.lastname||'').localeCompare(b.lastname||''));
-        
-        if (!presentSt.length) { toast("Aucun présent à exporter", "error"); return; }
-        if (!window.jspdf) { alert("Module PDF non prêt"); return; }
-        
-        const doc = new window.jspdf.jsPDF();
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(16);
-        doc.setTextColor(26, 92, 56); 
-        doc.text("AS CLAUDIE HAIGNERÉ", 15, 20);
-
-        doc.setFontSize(12);
-        doc.setTextColor(30, 41, 59);
-        doc.text(`Appel : ${evt.titre}`, 15, 28);
-        doc.text(`Date : ${fmtDate(evt.date)}`, 15, 35);
-        doc.text(`Total présents : ${presentSt.length}`, 15, 42);
-
-        let y = 55;
-        doc.setFontSize(10);
-        presentSt.forEach((st, i) => {
-            if (y > 275) { doc.addPage(); y = 20; }
-            doc.text(`${i+1}. ${(st.lastname||'').toUpperCase()} ${st.firstname || ""}`, 15, y);
-            y += 7;
-        });
-
-        doc.save(`Appel_${evt.date}.pdf`);
-        toast("PDF téléchargé 📄");
-    };
+    const evt = S.events.find(x => x.id === evtId);
+    const presents = S.inscriptions.filter(i => i.eventId === evtId).map(i => i.userId);
+    const presentSt = S.licencies.filter(x => presents.includes(x.id)).sort((a,b) => (a.lastname||'').localeCompare(b.lastname||''));
     
-    return html;
+    if (!presentSt.length) { toast("Aucun présent à exporter", "error"); return; }
+    if (!window.jspdf) { alert("Module PDF non prêt"); return; }
+    
+    const doc = new window.jspdf.jsPDF();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(26, 92, 56); 
+    doc.text("AS CLAUDIE HAIGNERÉ", 15, 20);
+
+    doc.setFontSize(12);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`Appel : ${evt.titre}`, 15, 28);
+    doc.text(`Date : ${fmtDate(evt.date)}`, 15, 35);
+    doc.text(`Total présents : ${presentSt.length}`, 15, 42);
+
+    let y = 55;
+    doc.setFontSize(10);
+    presentSt.forEach((st, i) => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        doc.text(`${i+1}. ${(st.lastname||'').toUpperCase()} ${st.firstname || ""}`, 15, y);
+        y += 7;
+    });
+
+    doc.save(`Appel_${evt.date}.pdf`);
+    toast("PDF téléchargé 📄");
+};
+
+function renderAppelNatif() {
+    if(!S.appelDate) S.appelDate = getTodayString();
+    
+    // Remplir classes dynamiquement
+    const classes = Array.from(new Set(S.licencies.map(s => s.class).filter(Boolean))).sort();
+    const classOpts = `<option value="">Toutes les classes</option>` + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+    
+    setTimeout(() => {
+        document.getElementById("appel-date").value = S.appelDate;
+        window.onAppelDateChange();
+    }, 50);
+
+    return `
+    <div class="card">
+        <h2 style="font-size:20px;font-weight:800;margin-bottom:16px; color:var(--as-black);"><i class="ph-fill ph-clipboard-text" style="color:var(--as-green)"></i> Pointage (Appel)</h2>
+        <div class="toolbar-grid">
+            <div class="field">
+                <label>Date</label>
+                <input class="input" style="background:#fff" id="appel-date" type="date" onchange="onAppelDateChange()">
+            </div>
+            <div class="field">
+                <label>Événement à pointer</label>
+                <select class="input" style="background:#fff" id="appel-event" onchange="onAppelEventChange()"></select>
+            </div>
+        </div>
+        <div class="field">
+            <label>Filtrer par classe</label>
+            <select class="input" style="background:#fff" id="appel-class" onchange="onAppelClassChange()">${classOpts}</select>
+        </div>
+    </div>
+    
+    <div class="grid2" style="margin-bottom:16px;">
+        <button class="btn btn-success" type="button" onclick="setAllPresent()"><i class="ph-bold ph-check-circle"></i> Tous présents</button>
+        <button class="btn btn-danger" type="button" onclick="clearCurrentAppel()"><i class="ph-bold ph-x-circle"></i> Tout effacer</button>
+    </div>
+    
+    <button class="btn" style="background:var(--as-black); color:white; margin-bottom:16px;" onclick="exportAppelPDF()">
+        <i class="ph-bold ph-file-pdf"></i> Exporter PDF des présents
+    </button>
+    
+    <div class="status-bar">
+        <span>Présents Pointés</span>
+        <span id="appel-counter">0 / 0</span>
+    </div>
+    
+    <div id="appel-list-container" style="display:flex; flex-direction:column; gap:10px; padding-bottom:40px;"></div>
+    `;
 }
 
+// ----------------------------------------------------
+// NOUVEAU MODULE BILAN
+// ----------------------------------------------------
 function renderBilanNatif() {
     let html = `<div class="card">
         <h3 style="display:flex; align-items:center; gap:8px;"><i class="ph-fill ph-chart-bar" style="color:var(--blue)"></i> Bilan des Présences</h3>
         <p style="color:var(--muted); font-size:13px; font-weight:bold; margin-bottom:16px;">Assiduité aux événements de l'année.</p>
         
-        <input class="input" type="search" id="search-bilan" placeholder="Rechercher un élève..." onkeyup="filterBilan()" style="margin-bottom:16px;">
+        <input class="input" type="search" id="search-bilan" placeholder="Rechercher un élève..." onkeyup="filterBilan()" style="margin-bottom:16px; background:#fff">
     </div>
     
     <div style="display:flex; flex-direction:column; gap:8px;" id="bilan-list">`;
@@ -675,6 +783,7 @@ function renderBilanNatif() {
     
     return html;
 }
+
 
 const vAdmin = () => {
   const banner = `<div class="admin-banner"><i class="ph-fill ph-shield-star" style="font-size:26px; color:var(--as-green-light)"></i>Espace Professeur EPS</div>`;
@@ -749,12 +858,31 @@ const vAdmin = () => {
         ${!isEditing ? `
         <div class="form-card">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-              <h2 style="font-size:20px;font-weight:800; color:var(--as-black);"><i class="ph-fill ph-users" style="color:var(--orange)"></i> Base Licenciés</h2>
+              <h2 style="font-size:20px;font-weight:800; color:var(--as-black);"><i class="ph-fill ph-users" style="color:var(--orange)"></i> Base Licenciés Officielle</h2>
               <button class="icon-action" style="background:var(--as-green-light); color:var(--as-green-dark);" onclick="document.getElementById('roster-modal').style.display='flex'" title="Gérer"><i class="ph-bold ph-pencil-simple"></i></button>
           </div>
-          <p style="font-size:13px; color:var(--muted);">Gérez la liste officielle de tous les élèves licenciés à l'AS (Importation CSV possible).</p>
+          <p style="font-size:13px; color:var(--muted);">Gérez la liste de tous les élèves licenciés à l'AS. Ils apparaîtront dans l'Appel, et pourront lier leur compte. Import CSV disponible.</p>
           <div style="background:var(--as-gray); padding:16px; border-radius:16px; text-align:center; font-weight:800; font-size:24px; color:var(--as-green); margin-top:16px;">
-              ${S.licencies.length} inscrits officiels
+              ${S.licencies.length} Licenciés
+          </div>
+        </div>
+        
+        <div class="form-card">
+          <h2 style="font-size:20px;font-weight:800;margin-bottom:16px; color:var(--as-black);"><i class="ph-fill ph-device-mobile" style="color:var(--blue)"></i> Comptes App. Élèves</h2>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Liste des élèves ayant téléchargé l'application et créé un mot de passe. Supprimez un compte en cas d'erreur de la part de l'élève.</p>
+          <div style="display:flex; flex-direction:column; gap:10px; max-height:300px; overflow-y:auto; padding-right:4px;">
+              ${S.users.filter(u=>u.role!=='admin').sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map(u => `
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:var(--as-gray); padding:12px; border-radius:16px; border:1px solid var(--line);">
+                      <div>
+                          <b style="display:block; font-size:15px; color:var(--text);">${esc((u.nom||'').toUpperCase())} ${esc(u.prenom)}</b>
+                          <span style="font-size:12px; color:var(--muted)">Connecté via ${esc(u.email)}</span>
+                      </div>
+                      <div style="display:flex; gap:6px;">
+                          <button class="icon-action" style="background:#fee2e2;color:var(--red);" data-a="delete-user" data-uid="${u.id}" title="Supprimer compte"><i class="ph-bold ph-trash"></i></button>
+                      </div>
+                  </div>
+              `).join('')}
+              ${S.users.filter(u=>u.role!=='admin').length === 0 ? `<div class="empty" style="padding:20px;">Aucun élève connecté.</div>` : ''}
           </div>
         </div>
         ` : ''}`;
@@ -782,8 +910,8 @@ function renderSheet() {
   people.forEach(p => {
       const sx = p.sexe === 'F' ? 'F' : 'G';
       let cat = '';
-      if (p.birthdate || p.dateNaissance) {
-          const birthYear = parseInt((p.birthdate || p.dateNaissance).split('-')[0], 10);
+      if (p.dateNaissance) {
+          const birthYear = parseInt((p.dateNaissance).split('-')[0], 10);
           const diff = refYear - birthYear;
           if (diff <= 12) cat = 'B';
           else if (diff === 13 || diff === 14) cat = 'M';
@@ -809,7 +937,7 @@ function renderSheet() {
           ${title} (${arr.length})
       </div>
       ${arr.map(p => {
-          const appUser = S.users.find(u => u.appelId === p.id);
+          const appUser = S.users.find(u => u.licencieId === p.id);
           const tel = appUser ? appUser.telResponsable : null;
           
           return `
@@ -845,7 +973,7 @@ function renderSheet() {
         ${renderGroup('Benjamins (BG)', groups.BG, 'linear-gradient(135deg,#60a5fa,#2563eb)')}
         ${renderGroup('Minimes Filles (MF)', groups.MF, 'linear-gradient(135deg,#f472b6,#db2777)')}
         ${renderGroup('Minimes Garçons (MG)', groups.MG, 'linear-gradient(135deg,#60a5fa,#2563eb)')}
-        ${renderGroup('Autres catégories', groups.Autre, '#94a3b8')}
+        ${renderGroup('Autres catégories / Inconnu', groups.Autre, '#94a3b8')}
 
         ${people.length === 0 ? `<div class="empty"><i class="ph ph-user-circle-dashed"></i>Aucun inscrit pour l'instant.</div>` : ''}
         
@@ -868,7 +996,7 @@ window.renderRosterModal = () => {
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--as-gray); border-radius:12px; border:1px solid var(--line);">
             <div>
                 <strong style="display:block; font-size:15px;">${esc((lic.lastname||'').toUpperCase())} ${esc(lic.firstname)}</strong>
-                <small style="color:var(--muted); font-size:12px; font-weight:600;">Classe ${esc(lic.class)} · ${esc(lic.sexe||'?')} · ${esc(lic.birthdate||lic.dateNaissance||'-')}</small>
+                <small style="color:var(--muted); font-size:12px; font-weight:600;">Classe ${esc(lic.class)} · ${esc(lic.sexe||'?')} · ${esc(lic.dateNaissance||'-')}</small>
             </div>
             <button onclick="deleteStudentManual('${lic.id}')" style="background:#fee2e2; color:var(--red); width:32px; height:32px; border-radius:8px; display:grid; place-items:center; font-size:16px;"><i class="ph-bold ph-trash"></i></button>
         </div>
@@ -887,7 +1015,7 @@ window.addStudentManual = async () => {
     if(exists) return toast("Cet élève existe déjà", "error");
     
     try {
-        await addDoc(C_LICENCIES, { lastname: l, firstname: f, class: c, dateNaissance: d, birthdate: d });
+        await addDoc(C_LICENCIES, { lastname: l, firstname: f, class: c, dateNaissance: d });
         toast("Élève ajouté !");
         document.getElementById('new-lastname').value = '';
         document.getElementById('new-firstname').value = '';
@@ -898,7 +1026,7 @@ window.addStudentManual = async () => {
 };
 
 window.deleteStudentManual = async (id) => {
-    if(confirm("Supprimer ce licencié ? (Cela supprimera ses statistiques d'appel)")) {
+    if(confirm("Supprimer ce licencié ?")) {
         try {
             await deleteDoc(doc(C_LICENCIES, id));
             toast("Supprimé");
@@ -938,7 +1066,7 @@ window.importCSV = async (e) => {
                     }
                     
                     const newDocRef = doc(C_LICENCIES);
-                    batch.set(newDocRef, { lastname: nom, firstname: prenom, class: classe, sexe: sexe, dateNaissance: finalDate, birthdate: finalDate });
+                    batch.set(newDocRef, { lastname: nom, firstname: prenom, class: classe, sexe: sexe, dateNaissance: finalDate });
                     addedCount++;
                 }
             }
@@ -984,7 +1112,7 @@ document.addEventListener('click', async (ev) => {
               btn.parentElement.style.background = 'white';
               btn.parentElement.style.borderColor = 'var(--line)';
           } else {
-              await setDoc(dref('inscriptions', docId), { eventId:evtId, userId:uid, timestamp:Date.now(), source:'appel_natif' });
+              await setDoc(dref('inscriptions', docId), { eventId:evtId, userId:uid, timestamp:Date.now() });
               btn.classList.add('present');
               btn.innerHTML = '<i class="ph-bold ph-check"></i>';
               btn.parentElement.style.background = 'var(--as-green-light)';
@@ -1025,10 +1153,27 @@ document.addEventListener('click', async (ev) => {
               }, 50);
           }
       }
+
+      if(a === 'delete-user') {
+          const u = S.users.find(x => x.id === uid);
+          if(u && confirm(`Supprimer définitivement le compte App de ${u.prenom} ${u.nom} ?`)) {
+              try {
+                  const inscripts = S.inscriptions.filter(i => i.userId === uid || i.userId === u.licencieId);
+                  const batch = writeBatch(db);
+                  batch.delete(doc(C_USERS, uid));
+                  inscripts.forEach(i => batch.delete(dref('inscriptions', i.id)));
+                  await batch.commit();
+                  toast('Compte App. supprimé');
+              } catch(err) {
+                  console.error(err);
+                  toast('Erreur de suppression', 'error');
+              }
+          }
+      }
       
       if(a === 'register' || a === 'unregister') {
           btn.innerHTML = '<span class="spin"></span>';
-          const regUserId = S.profile?.appelId || S.user.uid;
+          const regUserId = S.profile?.licencieId || S.user.uid;
           const docId = `${id}_${regUserId}`;
           
           if (a === 'register') await setDoc(dref('inscriptions', docId), { eventId:id, userId:regUserId, timestamp:Date.now() });
@@ -1061,7 +1206,7 @@ document.addEventListener('click', async (ev) => {
       btnSh.innerHTML = '<span class="spin"></span>';
       try {
           const res = await fetch(apiUrl);
-          if(!res.ok) throw new Error("Fichier inaccessible. Est-il bien partagé 'Tous les utilisateurs' ?");
+          if(!res.ok) throw new Error("Fichier inaccessible.");
           const text = await res.text();
           
           const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
@@ -1126,7 +1271,7 @@ document.addEventListener('click', async (ev) => {
           else { toast(`Calendrier déjà à jour.`, 'info'); }
       } catch(err) {
           console.error(err);
-          toast("Erreur de connexion au tableau Google", 'error');
+          toast("Erreur Google Sheet", 'error');
       } finally {
           btnSh.innerHTML = '<i class="ph-bold ph-arrows-clockwise"></i> Mettre à jour le calendrier';
       }
@@ -1147,31 +1292,32 @@ document.addEventListener('submit', async (ev) => {
           await signInWithEmailAndPassword(auth, email, pwd);
           toast('Connexion réussie !');
       } catch (err) {
+          console.error("Erreur de connexion :", err.code);
           if (email.toLowerCase() === ADMIN_EMAIL && err.code === 'auth/invalid-credential') {
               try {
                   const cred = await createUserWithEmailAndPassword(auth, email, pwd);
-                  await setDoc(doc(C_USERS, cred.user.uid), {
-                      prenom: 'Admin',
-                      nom: 'EPS',
-                      role: 'admin',
-                      email: email
-                  });
+                  await setDoc(doc(C_USERS, cred.user.uid), { prenom: 'Admin', nom: 'EPS', role: 'admin', email: email });
                   toast('Compte Professeur initialisé avec succès !');
                   return;
               } catch (createErr) {
-                  throw createErr;
+                  console.error("Erreur de création :", createErr.code);
+                  if (createErr.code === 'auth/operation-not-allowed') {
+                      toast("Action bloquée : Activez 'Email/Mot de passe' dans Firebase.", "error");
+                  } else {
+                      toast("Erreur de création : " + createErr.code, "error");
+                  }
+                  return;
               }
-          } else {
-              throw err;
           }
+          toast('Identifiants incorrects', 'error');
       }
       return;
     }
     
     if (form.id === 'register-form') {
       const email = document.getElementById('r-email').value.trim();
-      const rawAppelId = document.getElementById('r-appel-id').value;
-      const selectEl = document.getElementById('r-appel-id');
+      const rawLicId = document.getElementById('r-licencie-id').value;
+      const selectEl = document.getElementById('r-licencie-id');
       const selectedText = selectEl.options[selectEl.selectedIndex].text;
       const parts = selectedText.split(' ');
       const nom = parts[0];
@@ -1180,7 +1326,7 @@ document.addEventListener('submit', async (ev) => {
       const data = {
         prenom: prenom, 
         nom: nom,
-        appelId: rawAppelId,
+        licencieId: rawLicId,
         telResponsable: document.getElementById('r-tel').value.trim(), email, role: 'eleve'
       };
       
@@ -1287,11 +1433,6 @@ try { render(); } catch (error) {
     console.error("Erreur de démarrage AS :", error);
     $view.innerHTML = `<div class="empty"><h3>Oups !</h3><p>Recharge la page ou contacte le professeur.</p></div>`;
 }
-
-window.openRosterModal = () => {
-    window.renderRosterModal();
-    document.getElementById('roster-modal').style.display = 'flex';
-};
 </script>
 </body>
 </html>
