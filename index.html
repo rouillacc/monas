@@ -1290,6 +1290,7 @@ window.importCSV = async (e) => {
                 
                 if (idx === 0 || l.toLowerCase().includes("numéro de licence") || l.toLowerCase().includes("numã©ro de licence")) continue;
                 
+                // LECTURE DIRECTE SUR LES BONNES COLONNES
                 const nom = parts[1] ? String(parts[1]).trim() : "";
                 const prenom = parts[2] ? String(parts[2]).trim() : "";
                 const dateN = parts[3] ? String(parts[3]).trim() : ""; 
