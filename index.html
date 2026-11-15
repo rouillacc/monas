@@ -287,7 +287,6 @@ function getTodayString() {
 
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-// Correction de l'erreur fatale si la date d'un événement était indéfinie
 const fmtDate = (d) => {
     if (!d || typeof d !== 'string') return '';
     let dateObj = d.includes('/') ? new Date(`${d.split('/')[2]}-${d.split('/')[1]}-${d.split('/')[0]}T00:00:00`) : new Date(d + 'T00:00:00');
@@ -297,7 +296,6 @@ const fmtDate = (d) => {
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const countFor = (id) => S.inscriptions.filter(i => i.eventId === id).length;
 
-// Correction : Protection avec (e.date || '') pour éviter les erreurs .localeCompare bloquantes
 const upcomingEvents = () => S.events.filter(e => (e.date || '') >= getTodayString() && !e.isPast).sort((a,b) => (a.date || '').localeCompare(b.date || ''));
 const pastEvents = () => S.events.filter(e => (e.date || '') < getTodayString() || e.isPast).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
 const galleryEvents = () => pastEvents().filter(e => e.edunuageLink && e.edunuageLink.trim() !== '');
@@ -607,7 +605,9 @@ const fullName = lic => `${(lic.lastname || '').toUpperCase()} ${lic.firstname |
 const activeLicencies = () => S.licencies.filter(l => l.active !== false);
 
 function attendanceParticipants() {
-  if (S.attendanceType === 'training') return [...activeLicencies()];
+  if (S.attendanceType === 'training') {
+      return [...activeLicencies()].sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
+  }
   const eventId = S.attendanceEventId;
   if (!eventId) return [];
   const registered = S.inscriptions.filter(i => i.eventId === eventId).map(i => i.userId);
@@ -615,7 +615,10 @@ function attendanceParticipants() {
   const extras = Array.isArray(session?.extraIds) ? session.extraIds : [];
   const excluded = Array.isArray(session?.excludedIds) ? session.excludedIds : [];
   const ids = [...new Set([...registered, ...extras])].filter(id => !excluded.includes(id));
-  return ids.map(id => S.licencies.find(l => l.id === id)).filter(Boolean);
+  
+  return ids.map(id => S.licencies.find(l => l.id === id))
+            .filter(Boolean)
+            .sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
 }
 
 function previousTrainingSession(activity, date) {
@@ -625,14 +628,7 @@ function previousTrainingSession(activity, date) {
 }
 
 function orderedTrainingRoster() {
-  const previous = previousTrainingSession(S.attendanceActivity, S.attendanceDate);
-  const priorPresent = new Set(presentIdsFor(previous));
-  return [...activeLicencies()].sort((a,b) => {
-    const ap = priorPresent.has(a.id) ? 0 : 1;
-    const bp = priorPresent.has(b.id) ? 0 : 1;
-    if (ap !== bp) return ap - bp;
-    return fullName(a).localeCompare(fullName(b), 'fr');
-  });
+  return [...activeLicencies()].sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
 }
 
 function attendanceEditable(session) {
@@ -689,8 +685,13 @@ window.setAttendanceType = type => {
     S.attendanceDate = S.attendanceDate || getTodayString();
     S.attendanceActivity = scheduledActivity(S.attendanceDate);
   } else {
-    const events = [...S.events].sort((a,b) => (a.date||'').localeCompare(b.date||''));
-    S.attendanceEventId = events.find(e => (e.date||'') >= getTodayString())?.id || events[0]?.id || '';
+    const todayMs = new Date(getTodayString()).getTime();
+    const events = [...S.events].filter(e => {
+        const eMs = new Date(e.date || '').getTime();
+        return eMs >= todayMs - (7 * 24 * 60 * 60 * 1000);
+    });
+    const closestEvent = [...events].sort((a,b) => Math.abs(new Date(a.date||'').getTime() - todayMs) - Math.abs(new Date(b.date||'').getTime() - todayMs))[0];
+    S.attendanceEventId = closestEvent ? closestEvent.id : (events[0]?.id || '');
   }
   render();
 };
@@ -795,26 +796,37 @@ window.exportAttendancePDF = () => {
 function renderAppelNatif() {
   if (!S.attendanceDate) S.attendanceDate = getTodayString();
   if (!S.attendanceActivity && S.attendanceType === 'training') S.attendanceActivity = scheduledActivity(S.attendanceDate);
-  const events = [...S.events].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  const selectedEvent = events.find(e=>e.id===S.attendanceEventId) || events.find(e=>(e.date||'')>=getTodayString()) || events[0];
+  
+  const todayMs = new Date(getTodayString()).getTime();
+  
+  const events = [...S.events].filter(e => {
+      const eMs = new Date(e.date || '').getTime();
+      return eMs >= todayMs - (7 * 24 * 60 * 60 * 1000);
+  }).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  
+  const closestEvent = [...events].sort((a,b) => Math.abs(new Date(a.date||'').getTime() - todayMs) - Math.abs(new Date(b.date||'').getTime() - todayMs))[0];
+  const selectedEvent = events.find(e => e.id === S.attendanceEventId) || closestEvent || events[0];
+  
   if (selectedEvent && selectedEvent.id !== S.attendanceEventId) S.attendanceEventId = selectedEvent.id;
+  
   const session = currentAttendance();
   const participants = S.attendanceType === 'training' ? orderedTrainingRoster() : attendanceParticipants();
   const present = new Set(presentIdsFor(session));
   const editable = attendanceEditable(session);
   const presentCount = participants.filter(p=>present.has(p.id)).length;
-  const date = S.attendanceType === 'training' ? S.attendanceDate : (selectedEvent?.date || '');
-  const eventOptions = events.map(e=>`<option value="${esc(e.id)}" ${e.id===S.attendanceEventId?'selected':''}>${esc(fmtDate(e.date))} · ${esc(e.titre)}</option>`).join('');
+  
+  const eventOptions = events.map(e => `<option value="${esc(e.id)}" ${e.id===S.attendanceEventId?'selected':''}>${esc(fmtDate(e.date))} · ${esc(e.titre)}</option>`).join('');
   const activity = S.attendanceActivity || scheduledActivity(S.attendanceDate);
   const rosterRegistered = S.attendanceType === 'competition' ? new Set(S.inscriptions.filter(i=>i.eventId===S.attendanceEventId).map(i=>i.userId)) : new Set();
-  const addable = activeLicencies().filter(l=>!participants.some(p=>p.id===l.id));
-  const lastSession = S.attendanceType === 'training' ? previousTrainingSession(activity, S.attendanceDate) : null;
+  
+  const addable = activeLicencies().filter(l=>!participants.some(p=>p.id===l.id)).sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
+  
   let listHtml = '';
   
   if (S.attendanceType === 'training' && !activity) {
     listHtml = `<div class="module-warning">Aucun entraînement n'est programmé ce jour-là. Le planning est limité au lundi, mardi, jeudi et vendredi. Choisis une autre date.</div>`;
   } else if (S.attendanceType === 'competition' && !selectedEvent) {
-    listHtml = `<div class="empty">Aucune compétition disponible. Crée d'abord un événement dans l'administration.</div>`;
+    listHtml = `<div class="empty">Aucune compétition récente ou à venir.</div>`;
   } else if (!participants.length) {
     listHtml = `<div class="empty">Aucun licencié à afficher pour cet appel.</div>`;
   } else {
@@ -843,9 +855,9 @@ function renderAppelNatif() {
         <div style="background:var(--as-green-light);padding:13px 15px;border-radius:14px;color:var(--as-green-dark);font-weight:900;"><i class="ph-fill ph-calendar-check"></i> ${activity ? esc(activity) : 'Aucun entraînement programmé'}</div>
         <small style="display:block;margin-top:9px;color:var(--muted);font-weight:600;">Planning fixe : lundi Futsal · mardi Sports collectifs · jeudi Activités artistiques · vendredi Badminton.</small>
       ` : `
-        <div class="field"><label>Compétition / événement</label><select class="input" onchange="onAttendanceEventChange(this.value)"><option value="">Choisir une compétition</option>${eventOptions}</select></div>
+        <div class="field"><label>Compétition / événement</label><select class="input" onchange="onAttendanceEventChange(this.value)">${eventOptions || '<option value="">Aucune compétition</option>'}</select></div>
         ${selectedEvent ? `<div style="background:var(--as-green-light);padding:12px 14px;border-radius:14px;color:var(--as-green-dark);font-weight:800;">${esc(fmtDate(selectedEvent.date))} · ${esc(selectedEvent.titre)}</div>` : ''}
-        <small style="display:block;margin-top:9px;color:var(--muted);font-weight:600;">La liste est constituée automatiquement à partir des inscriptions. Tu peux ajouter un licencié si nécessaire.</small>
+        <small style="display:block;margin-top:9px;color:var(--muted);font-weight:600;">Seules les compétitions récentes ou à venir sont affichées.</small>
       `}
     </div>
     ${S.attendanceType==='competition' && selectedEvent ? `
@@ -861,7 +873,6 @@ function renderAppelNatif() {
         <div><b>${presentCount}</b><span>Présents</span></div>
         <div><b>${participants.length-presentCount}</b><span>Absents</span></div>
       </div>
-      ${lastSession ? `<div class="module-note"><i class="ph-fill ph-info"></i> Les ${presentIdsFor(lastSession).length} présents du dernier créneau de ${esc(activity)} (${fmtDate(lastSession.date)}) sont placés en premier.</div>` : ''}
       ${!editable ? `<div class="module-warning">Cet appel est ancien : seul un administrateur peut le modifier.</div>` : ''}
       <div class="status-bar"><span>Liste d'appel</span><span>${presentCount} / ${participants.length}</span></div>
       ${listHtml}
@@ -1267,6 +1278,10 @@ window.importCSV = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
     
+    const inputEl = e.target;
+    inputEl.disabled = true;
+    toast("Analyse du fichier en cours...", "info");
+    
     const reader = new FileReader();
     
     reader.onload = async function(evt) {
@@ -1275,6 +1290,8 @@ window.importCSV = async (e) => {
         
         let currentBatch = writeBatch(db);
         let opCount = 0;
+        
+        const newlyAddedKeys = new Set();
 
         try {
             for (let idx = 0; idx < lines.length; idx++) {
@@ -1294,9 +1311,13 @@ window.importCSV = async (e) => {
                 const dateN = parts[4] ? String(parts[4]).trim() : ""; 
 
                 if (nom && prenom) {
-                    const alreadyExists = S.licencies.some(s => (s.lastname||'').trim().toLowerCase() === nom.toLowerCase() && (s.firstname||'').trim().toLowerCase() === prenom.toLowerCase());
+                    const uniqueKey = `${nom.toLowerCase()}_${prenom.toLowerCase()}`;
                     
-                    if (!alreadyExists) {
+                    const alreadyExistsInDB = S.licencies.some(s => (s.lastname||'').trim().toLowerCase() === nom.toLowerCase() && (s.firstname||'').trim().toLowerCase() === prenom.toLowerCase());
+                    
+                    if (!alreadyExistsInDB && !newlyAddedKeys.has(uniqueKey)) {
+                        newlyAddedKeys.add(uniqueKey); 
+                        
                         let finalDate = dateN;
                         if(dateN.includes('/')) {
                             const dparts = dateN.split('/');
@@ -1331,24 +1352,52 @@ window.importCSV = async (e) => {
             }
             
             if(addedCount > 0) {
-                toast(`${addedCount} licenciés importés avec succès !`);
+                toast(`${addedCount} nouveaux licenciés importés !`);
                 setTimeout(window.renderRosterModal, 500);
             } else {
-                toast("Aucun nouveau licencié trouvé (ils sont peut-être déjà tous inscrits).", "info");
+                toast("Aucun nouveau licencié trouvé (ils sont tous déjà inscrits).", "info");
             }
         } catch (error) {
-            console.error("Erreur Firebase lors de l'import détaillé :", error);
+            console.error("Erreur Firebase lors de l'import :", error);
             if (error.code === 'permission-denied') {
                 toast("Erreur : Firebase refuse l'écriture (Vérifiez les règles Firestore).", "error");
             } else {
                 toast("Erreur réseau ou limite de base de données atteinte.", "error");
             }
+        } finally {
+            inputEl.disabled = false;
+            inputEl.value = "";
         }
-        
-        e.target.value = "";
     };
     
     reader.readAsText(f, "windows-1252");
+};
+
+window.nettoyerDoublons = async () => {
+    const vus = new Set();
+    let doublons = 0;
+    const batch = writeBatch(db);
+    
+    for (const lic of S.licencies) {
+        if (lic.active === false) continue;
+        const cle = `${(lic.lastname||'').trim().toLowerCase()}_${(lic.firstname||'').trim().toLowerCase()}`;
+        
+        if (vus.has(cle)) {
+            batch.delete(doc(db, 'as_licencies', lic.id));
+            doublons++;
+        } else {
+            vus.add(cle);
+        }
+    }
+    
+    if (doublons > 0) {
+        toast(`Nettoyage de ${doublons} doublons en cours...`, "info");
+        await batch.commit();
+        toast(`${doublons} doublons supprimés avec succès !`);
+        setTimeout(window.renderRosterModal, 500);
+    } else {
+        toast("Aucun doublon trouvé dans la base.");
+    }
 };
 
 document.addEventListener('click', async (ev) => {
