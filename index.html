@@ -609,7 +609,7 @@ function renderAppelNatif() {
         const doc = new window.jspdf.jsPDF();
         doc.setFont("helvetica", "bold");
         doc.setFontSize(16);
-        doc.setTextColor(26, 92, 56); // as-green
+        doc.setTextColor(26, 92, 56); 
         doc.text("AS CLAUDIE HAIGNERÉ", 15, 20);
 
         doc.setFontSize(12);
@@ -925,7 +925,7 @@ window.importCSV = async (e) => {
         lines.forEach((l, idx) => {
             let parts = l.split(";").map(p => p.replace(/^"|"$/g, "").trim());
             if (idx === 0 && (parts[0].toLowerCase().includes("nom") || parts[0].toLowerCase().includes("licence"))) return;
-            if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); 
+            if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); // Ignore numéro licence
             
             const nom = parts[0] ? parts[0].trim() : "";
             const prenom = parts[1] ? parts[1].trim() : "";
@@ -1147,8 +1147,25 @@ document.addEventListener('submit', async (ev) => {
   
   try {
     if (form.id === 'login-form') {
-      await signInWithEmailAndPassword(auth, document.getElementById('l-email').value.trim(), document.getElementById('l-pwd').value);
-      toast('Connexion réussie !');
+      const email = document.getElementById('l-email').value.trim();
+      const pwd = document.getElementById('l-pwd').value;
+      try {
+          await signInWithEmailAndPassword(auth, email, pwd);
+          toast('Connexion réussie !');
+      } catch (err) {
+          if (email.toLowerCase() === ADMIN_EMAIL) {
+              try {
+                  await createUserWithEmailAndPassword(auth, email, pwd);
+                  toast('Compte Professeur initialisé !');
+                  return;
+              } catch (e) {
+                  throw err;
+              }
+          } else {
+              throw err;
+          }
+      }
+      return;
     }
     
     if (form.id === 'register-form') {
