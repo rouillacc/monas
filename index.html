@@ -220,7 +220,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// BASE UNIQUE (L'ancienne base d'appel devient la base maîtresse)
+// BASE UNIQUE 
 const firebaseConfig = {
   apiKey: "AIzaSyCmV2E6dhnXPDNjjMkVQHI8IH2nXKQByvc",
   authDomain: "appel-as.firebaseapp.com",
@@ -235,13 +235,12 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 const ADMIN_EMAIL = 'epsclaudie@gmail.com';
-const ACCESS_CODE = 'Rouillac16';
+const ACCESS_CODE = 'haignere16';
 
-// Collections dans la base unique
 const C_EVENTS = collection(db, 'as_events');
 const C_INSCRIPT = collection(db, 'as_inscriptions');
-const C_USERS = collection(db, 'as_users'); // Comptes avec mot de passe (Application)
-const C_LICENCIES = collection(db, 'as_licencies'); // Base officielle (Appel + Catégories)
+const C_USERS = collection(db, 'as_users'); 
+const C_LICENCIES = collection(db, 'as_licencies'); 
 
 const S = {
   view: 'loading', tab: 'upcoming', user: null, profile: null, isAdmin: false,
@@ -269,10 +268,6 @@ const countFor = (id) => S.inscriptions.filter(i => i.eventId === id).length;
 const upcomingEvents = () => S.events.filter(e => e.date >= getTodayString() && !e.isPast).sort((a,b) => a.date.localeCompare(b.date));
 const pastEvents = () => S.events.filter(e => e.date < getTodayString() || e.isPast).sort((a,b) => b.date.localeCompare(a.date));
 const galleryEvents = () => pastEvents().filter(e => e.edunuageLink && e.edunuageLink.trim() !== '');
-
-function cleanName(l, f) {
-  return (String(l||'').toUpperCase() + " " + String(f||'')).trim();
-}
 
 function getEventTheme(titre, desc = '') {
     const text = (titre + ' ' + desc).toLowerCase();
@@ -681,7 +676,6 @@ function renderBilanNatif() {
     return html;
 }
 
-
 const vAdmin = () => {
   const banner = `<div class="admin-banner"><i class="ph-fill ph-shield-star" style="font-size:26px; color:var(--as-green-light)"></i>Espace Professeur EPS</div>`;
   
@@ -925,7 +919,7 @@ window.importCSV = async (e) => {
         lines.forEach((l, idx) => {
             let parts = l.split(";").map(p => p.replace(/^"|"$/g, "").trim());
             if (idx === 0 && (parts[0].toLowerCase().includes("nom") || parts[0].toLowerCase().includes("licence"))) return;
-            if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); // Ignore numéro licence
+            if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); 
             
             const nom = parts[0] ? parts[0].trim() : "";
             const prenom = parts[1] ? parts[1].trim() : "";
@@ -1067,7 +1061,7 @@ document.addEventListener('click', async (ev) => {
       btnSh.innerHTML = '<span class="spin"></span>';
       try {
           const res = await fetch(apiUrl);
-          if(!res.ok) throw new Error("Fichier inaccessible.");
+          if(!res.ok) throw new Error("Fichier inaccessible. Est-il bien partagé 'Tous les utilisateurs' ?");
           const text = await res.text();
           
           const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
@@ -1132,7 +1126,7 @@ document.addEventListener('click', async (ev) => {
           else { toast(`Calendrier déjà à jour.`, 'info'); }
       } catch(err) {
           console.error(err);
-          toast("Erreur Google Sheet", 'error');
+          toast("Erreur de connexion au tableau Google", 'error');
       } finally {
           btnSh.innerHTML = '<i class="ph-bold ph-arrows-clockwise"></i> Mettre à jour le calendrier';
       }
@@ -1153,13 +1147,19 @@ document.addEventListener('submit', async (ev) => {
           await signInWithEmailAndPassword(auth, email, pwd);
           toast('Connexion réussie !');
       } catch (err) {
-          if (email.toLowerCase() === ADMIN_EMAIL) {
+          if (email.toLowerCase() === ADMIN_EMAIL && err.code === 'auth/invalid-credential') {
               try {
-                  await createUserWithEmailAndPassword(auth, email, pwd);
-                  toast('Compte Professeur initialisé !');
+                  const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+                  await setDoc(doc(C_USERS, cred.user.uid), {
+                      prenom: 'Admin',
+                      nom: 'EPS',
+                      role: 'admin',
+                      email: email
+                  });
+                  toast('Compte Professeur initialisé avec succès !');
                   return;
-              } catch (e) {
-                  throw err;
+              } catch (createErr) {
+                  throw createErr;
               }
           } else {
               throw err;
