@@ -398,8 +398,16 @@ onAuthStateChanged(auth, async (user) => {
   try{render()}catch(e){}
 });
 
+// ASTUCE ANTI-SAUT D'ECRAN
 function render() {
   const scroll = $view.scrollTop;
+  const currentHeight = $view.scrollHeight;
+  
+  // On gèle la hauteur du conteneur pendant le re-rendu pour éviter que la barre de défilement ne disparaisse
+  if (currentHeight > 0) {
+      $view.style.minHeight = currentHeight + 'px';
+  }
+  
   $head.innerHTML = S.user ? `<button class="icon-btn" onclick="signOutAuth()" aria-label="Déconnexion"><i class="ph-bold ph-sign-out"></i></button>` : '';
 
   if(S.view === 'loading') {
@@ -428,9 +436,16 @@ function render() {
   if(S.view === 'student') $view.innerHTML = vStudent();
   
   $view.classList.toggle('no-nav', !S.user);
-  $view.scrollTop = scroll;
+  
   renderNav();
   renderSheet();
+  
+  // On remet la position de défilement, puis on débloque la hauteur après l'affichage
+  $view.scrollTop = scroll;
+  requestAnimationFrame(() => {
+      $view.scrollTop = scroll;
+      $view.style.minHeight = ''; 
+  });
 }
 
 function renderNav() {
@@ -739,17 +754,30 @@ window.onAttendanceEventChange = value => {
   render();
 };
 
-window.toggleAttendance = async id => {
+// MISE À JOUR OPTIMISTE POUR L'APPEL
+window.toggleAttendance = async (event, id) => {
   const session = currentAttendance();
   if (!attendanceEditable(session)) return toast('Seul un administrateur peut modifier un appel passé.', 'error');
+  
+  // Modification visuelle immédiate pour contrer l'effet de lenteur
+  if (event && event.currentTarget) {
+      const btn = event.currentTarget;
+      const isPresent = btn.classList.contains('present');
+      btn.classList.toggle('present', !isPresent);
+      btn.classList.toggle('absent', isPresent);
+      btn.innerHTML = !isPresent ? '✓ PRÉSENT' : 'ABSENT';
+  }
+
+  const participants = attendanceParticipants().map(x => x.id);
+  if (!participants.includes(id)) return;
   const present = new Set(presentIdsFor(session));
   present.has(id) ? present.delete(id) : present.add(id);
   try {
     await persistAttendance({presentIds:[...present]});
-    render();
   } catch (err) {
     console.error(err);
     toast("Impossible d'enregistrer cette présence.", 'error');
+    render(); // Annuler l'action visuelle si erreur
   }
 };
 
@@ -852,12 +880,13 @@ function renderAppelNatif() {
           }
       }
 
+      // Ajout de "event" dans la fonction onclick
       return `<div class="attendance-row" style="margin-bottom:0; ${rowStyle}">
         <div class="att-info">
           <span class="att-name" style="${nameStyle}">${esc(fullName(p))}</span>
           <span class="att-meta">${metaText}</span>
         </div>
-        <button class="attendance-state ${isPresent?'present':'absent'}" ${editable?'':'disabled'} onclick="toggleAttendance('${p.id}')">${isPresent?'✓ PRÉSENT':'ABSENT'}</button>
+        <button class="attendance-state ${isPresent?'present':'absent'}" ${editable?'':'disabled'} onclick="toggleAttendance(event, '${p.id}')">${isPresent?'✓ PRÉSENT':'ABSENT'}</button>
       </div>`;
     }).join('') + `</div>`;
   }
@@ -1524,13 +1553,26 @@ document.addEventListener('click', async (ev) => {
       }
       
       if(a === 'register' || a === 'unregister') {
+          const originalHTML = btn.innerHTML;
           btn.innerHTML = '<span class="spin"></span>';
-          const regUserId = S.profile?.licencieId || S.user.uid;
-          const docId = `${id}_${regUserId}`;
+          btn.style.pointerEvents = 'none';
           
-          if (a === 'register') await setDoc(doc(db, 'as_inscriptions', docId), { eventId:id, userId:regUserId, timestamp:Date.now() });
-          else await deleteDoc(doc(db, 'as_inscriptions', docId));
+          try {
+              const regUserId = S.profile?.licencieId || S.user.uid;
+              const docId = `${id}_${regUserId}`;
+              
+              if (a === 'register') await setDoc(doc(db, 'as_inscriptions', docId), { eventId:id, userId:regUserId, timestamp:Date.now() });
+              else await deleteDoc(doc(db, 'as_inscriptions', docId));
+              
+              toast(a === 'register' ? "Inscription confirmée !" : "Désinscription effectuée");
+          } catch (err) {
+              console.error(err);
+              toast("Erreur : Firebase a bloqué l'action (Vérifiez les règles).", "error");
+              btn.innerHTML = originalHTML;
+              btn.style.pointerEvents = 'auto';
+          }
       }
+      
       if(a === 'delete-event') {
           if (confirm("Supprimer définitivement cet événement ?")) {
               await deleteDoc(doc(db, 'as_events', id));
