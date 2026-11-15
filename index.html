@@ -59,18 +59,15 @@ button{cursor:pointer;border:none;background:none;outline:none;}
     box-shadow: 0 0 60px rgba(0,0,0,.1);
 }
 
-/* Style de l'application sur grand écran */
 @media (min-width: 600px) {
     #shell { 
-        max-width: 480px; /* Conserve une largeur type smartphone */
+        max-width: 480px; 
         margin: 20px auto; 
-        border-radius: 32px; /* Coins arrondis pour faire "app" */
-        height: calc(100vh - 40px); /* Laisse un peu d'espace en haut et en bas */
-        border: 8px solid #374151; /* Simulation de bordure de téléphone */
+        border-radius: 32px; 
+        height: calc(100vh - 40px); 
+        border: 8px solid #374151; 
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     }
-    
-    /* Assure que la barre de navigation reste ancrée au shell et non à la page entière */
     nav {
         position: absolute;
         left: 16px;
@@ -189,12 +186,12 @@ nav button.active i{transform:scale(1.15)}
 .attendance-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#e9eef0;padding:5px;border-radius:16px;margin-bottom:16px}
 .attendance-switch button{padding:12px 8px;border-radius:12px;font-weight:800;color:#52606d}
 .attendance-switch button.active{background:#fff;color:var(--as-green);box-shadow:0 3px 10px rgba(0,0,0,.08)}
-.attendance-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px 12px;margin-bottom:8px}
+.attendance-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px 12px;margin-bottom:8px; transition:0.2s;}
 .attendance-row .att-info{flex:1;min-width:0}
 .attendance-row .att-name{font-size:14px;font-weight:800;color:var(--as-black);display:block}
 .attendance-row .att-meta{font-size:11px;color:var(--muted);font-weight:600}
-.attendance-state{min-width:92px;padding:11px 8px;border-radius:12px;font-size:12px;font-weight:900}
-.attendance-state.present{background:var(--as-green-light);color:var(--as-green-dark);border:1px solid var(--as-green)}
+.attendance-state{min-width:92px;padding:11px 8px;border-radius:12px;font-size:12px;font-weight:900; transition:0.2s;}
+.attendance-state.present{background:var(--as-green);color:white;border:1px solid var(--as-green-dark); box-shadow:0 4px 10px rgba(26,92,56,0.3);}
 .attendance-state.absent{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
 .attendance-state:disabled{opacity:.55}
 .attendance-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
@@ -206,9 +203,6 @@ nav button.active i{transform:scale(1.15)}
 .bilan-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px}
 .bilan-metrics{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;font-weight:800;color:var(--muted)}
 .bilan-metrics span{background:var(--as-gray);padding:5px 8px;border-radius:8px}
-.admin-shortcut{display:flex;align-items:center;gap:12px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:16px;margin-bottom:10px;text-align:left;width:100%}
-.admin-shortcut i{font-size:22px;color:var(--as-green)}
-.admin-shortcut span{font-weight:800;color:var(--as-black)}
 @media(max-width:380px){.attendance-state{min-width:76px;font-size:11px}.attendance-row{padding:9px}.attendance-summary b{font-size:19px}}
 </style>
 </head>
@@ -307,6 +301,12 @@ const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');
 const $head = document.getElementById('header-actions'); 
 
+// Fetch de la base commune dès le chargement pour le menu d'inscription
+onSnapshot(C_LICENCIES, s => { 
+    S.licencies = s.docs.map(d => ({id:d.id, ...d.data()})); 
+    try{render()}catch(e){} 
+});
+
 function getTodayString() {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -392,7 +392,6 @@ onAuthStateChanged(auth, async (user) => {
   S.unsubs.push(onSnapshot(C_EVENTS, s => { S.events = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
   S.unsubs.push(onSnapshot(C_INSCRIPT, s => { S.inscriptions = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
   S.unsubs.push(onSnapshot(C_USERS, s => { S.users = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
-  S.unsubs.push(onSnapshot(C_LICENCIES, s => { S.licencies = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
   if (S.isTeacher) {
     S.unsubs.push(onSnapshot(C_ATTENDANCE, s => { S.attendance = s.docs.map(d => ({id:d.id, ...d.data()})); try{render()}catch(e){} }));
   }
@@ -648,12 +647,10 @@ const activeLicencies = () => S.licencies.filter(l => l.active !== false);
 function attendanceParticipants() {
   let list = [...activeLicencies()];
   
-  // Entraînement : Tri strictement alphabétique
   if (S.attendanceType === 'training') {
       return list.sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
   }
   
-  // Compétition : Tri des élèves inscrits d'abord, puis ordre alphabétique
   const eventId = S.attendanceEventId;
   const registered = new Set(S.inscriptions.filter(i => i.eventId === eventId).map(i => i.userId));
   
@@ -689,7 +686,6 @@ async function persistAttendance(patch = {}) {
   if (!id || (S.attendanceType === 'competition' && !S.attendanceEventId)) return;
   const existing = currentAttendance() || {};
   
-  // On inclut désormais toute la base active dans le tableau des participants pour les deux modes
   const participants = activeLicencies().map(x=>x.id); 
   
   const data = {
@@ -782,7 +778,8 @@ window.clearAttendance = async () => {
 
 window.exportAttendancePDF = () => {
   const session = currentAttendance();
-  const participants = attendanceParticipants().sort((a,b)=>fullName(a).localeCompare(fullName(b),'fr'));
+  const participants = [...activeLicencies()].sort((a,b)=>fullName(a).localeCompare(fullName(b),'fr'));
+  
   if (!window.jspdf) return toast('Module PDF non disponible.', 'error');
   const docPdf = new window.jspdf.jsPDF();
   const title = S.attendanceType === 'training' ? S.attendanceActivity : (S.events.find(e=>e.id===S.attendanceEventId)?.titre || 'Compétition');
