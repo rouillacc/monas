@@ -140,7 +140,6 @@ nav button.active i{transform:scale(1.15)}
 .inscrits-chip{display:flex;justify-content:space-between;align-items:center;background:var(--as-gray);border-radius:16px;padding:14px 18px;margin-top:16px; margin-bottom:6px; font-weight:800;color:var(--as-black);cursor:pointer; transition:0.2s;}
 .inscrits-chip:active{background:#e5e7eb; transform:scale(0.98);}
 
-/* APPEL NATIVE STYLES */
 .student-row { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom:10px; transition:0.2s;}
 .st-info strong { display: block; font-size: 16px; color:var(--as-black); }
 .st-info small { color: var(--muted); font-size: 13px; font-weight:600;}
@@ -148,7 +147,6 @@ nav button.active i{transform:scale(1.15)}
 .p-btn.present { background: var(--as-green-light); color: var(--as-green-dark); border-color:var(--as-green); }
 .p-btn:active{transform:scale(0.9)}
 .status-bar { display: flex; justify-content: space-between; align-items: center; background: var(--as-black); color:white; padding: 16px 20px; border-radius: 16px; margin-bottom: 16px; font-weight: 800; font-size:15px; box-shadow:0 8px 20px rgba(0,0,0,0.15);}
-.toolbar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 
 #toasts{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 80px);display:flex;flex-direction:column;align-items:center;gap:10px;z-index:100;pointer-events:none}
 .toast{background:var(--as-black);color:#fff;padding:14px 20px;border-radius:18px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:12px; max-width:90%; box-shadow:0 10px 25px rgba(0,0,0,0.3);}
@@ -182,7 +180,6 @@ nav button.active i{transform:scale(1.15)}
 .admin-shortcut i{font-size:22px;color:var(--as-green)}
 .admin-shortcut span{font-weight:800;color:var(--as-black)}
 @media(max-width:380px){.attendance-state{min-width:76px;font-size:11px}.attendance-row{padding:9px}.attendance-summary b{font-size:19px}}
-
 </style>
 </head>
 
@@ -200,7 +197,6 @@ nav button.active i{transform:scale(1.15)}
   <nav id="nav" class="hidden"></nav>
   <div id="toasts"></div>
   
-  <!-- BANDEAU D'INSTALLATION PWA -->
   <div id="install-banner" style="display:none; position:fixed; top:20px; left:16px; right:16px; background:var(--as-black); color:#fff; padding:16px; border-radius:24px; box-shadow:0 12px 30px rgba(0,0,0,0.4); z-index:9999; flex-direction:column; gap:14px; animation:slideIn 0.4s;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div style="display:flex; gap:12px; align-items:center;">
@@ -216,7 +212,6 @@ nav button.active i{transform:scale(1.15)}
   </div>
 </div>
 
-<!-- Modal Édition Élèves (Base Licenciés) -->
 <div id="roster-modal" style="position:fixed;inset:0;background:rgba(17,24,39,.6);z-index:9999;backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this) this.style.display='none'">
   <div style="background:#fff;width:100%;max-width:500px;border-radius:24px;padding:24px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
@@ -247,11 +242,11 @@ nav button.active i{transform:scale(1.15)}
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+// Utilisation de la version stable la plus récente pour éviter les erreurs 404 du CDN
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-// BASE DE DONNÉES UNIQUE ET DÉFINITIVE
 const firebaseConfig = {
   apiKey: "AIzaSyB475MQ5DD_xXZlVHKDbcrPcciLSr7FGto",
   authDomain: "cdm-rouillac.firebaseapp.com",
@@ -270,9 +265,9 @@ const ACCESS_CODE = 'haignere16';
 
 const C_EVENTS = collection(db, 'as_events');
 const C_INSCRIPT = collection(db, 'as_inscriptions');
-const C_USERS = collection(db, 'as_users'); // Les comptes de l'appli (mot de passe)
-const C_LICENCIES = collection(db, 'as_licencies'); // Base commune des licenciés
-const C_ATTENDANCE = collection(db, 'as_attendance_sessions'); // Nouveaux appels AS 2.0
+const C_USERS = collection(db, 'as_users'); 
+const C_LICENCIES = collection(db, 'as_licencies'); 
+const C_ATTENDANCE = collection(db, 'as_attendance_sessions'); 
 
 const S = {
   view: 'loading', tab: 'upcoming', user: null, profile: null, isAdmin: false,
@@ -284,26 +279,31 @@ const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');
 const $head = document.getElementById('header-actions'); 
 
-const getTodayString = () => {
+function getTodayString() {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().split('T')[0];
-};
+}
 
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Correction de l'erreur fatale si la date d'un événement était indéfinie
 const fmtDate = (d) => {
+    if (!d || typeof d !== 'string') return '';
     let dateObj = d.includes('/') ? new Date(`${d.split('/')[2]}-${d.split('/')[1]}-${d.split('/')[0]}T00:00:00`) : new Date(d + 'T00:00:00');
     return isNaN(dateObj) ? d : dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
 };
+
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const countFor = (id) => S.inscriptions.filter(i => i.eventId === id).length;
 
-const upcomingEvents = () => S.events.filter(e => e.date >= getTodayString() && !e.isPast).sort((a,b) => a.date.localeCompare(b.date));
-const pastEvents = () => S.events.filter(e => e.date < getTodayString() || e.isPast).sort((a,b) => b.date.localeCompare(a.date));
+// Correction : Protection avec (e.date || '') pour éviter les erreurs .localeCompare bloquantes
+const upcomingEvents = () => S.events.filter(e => (e.date || '') >= getTodayString() && !e.isPast).sort((a,b) => (a.date || '').localeCompare(b.date || ''));
+const pastEvents = () => S.events.filter(e => (e.date || '') < getTodayString() || e.isPast).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
 const galleryEvents = () => pastEvents().filter(e => e.edunuageLink && e.edunuageLink.trim() !== '');
 
 function getEventTheme(titre, desc = '') {
-    const text = (titre + ' ' + desc).toLowerCase();
+    const text = ((titre || '') + ' ' + (desc || '')).toLowerCase();
     if (text.includes('futsal') || text.includes('foot')) return { emoji: '⚽', color: 'linear-gradient(135deg, #059669, #047857)' };
     if (text.includes('basket')) return { emoji: '🏀', color: 'linear-gradient(135deg, #d97706, #b45309)' };
     if (text.includes('hand')) return { emoji: '🤾', color: 'linear-gradient(135deg, #0284c7, #0369a1)' };
@@ -378,6 +378,11 @@ function render() {
   const scroll = $view.scrollTop;
   $head.innerHTML = S.user ? `<button class="icon-btn" onclick="signOutAuth()" aria-label="Déconnexion"><i class="ph-bold ph-sign-out"></i></button>` : '';
 
+  // Correction de la page blanche : Ajout du module de chargement initial.
+  if(S.view === 'loading') {
+      $view.innerHTML = `<div class="hero" style="padding-top:60px;"><div class="spin" style="width:40px;height:40px;border-width:4px;border-top-color:var(--as-green);margin-bottom:20px;"></div><h2 style="color:var(--muted);font-size:16px;">Connexion au serveur...</h2></div>`;
+  }
+  
   if(S.view === 'guard') {
       $view.innerHTML = `<div class="hero"><div class="hero-icon"><img src="1000203112.jpg" alt="Logo"></div><h2 style="font-size:24px; color:var(--as-black);">Accès Collège</h2><p style="color:var(--muted); font-weight:600; margin-bottom:24px;">Entre le code de l'AS fourni par les professeurs.</p><div style="width:100%;max-width:300px"><input id="guard-input" class="input code-input" placeholder="CODE"><button class="btn btn-primary" onclick="checkCode()" style="margin-top:16px">Valider l'accès</button><button class="link" onclick="showLogin()" style="margin-top:16px;width:100%">J'ai déjà un compte · Connexion</button></div></div>`;
   }
@@ -531,7 +536,7 @@ const vStudent = () => {
 function adminCard(e) {
   const n = countFor(e.id);
   const theme = getEventTheme(e.titre, e.description || '');
-  const past = e.isPast || e.date < getTodayString();
+  const past = e.isPast || (e.date || '') < getTodayString();
   const max = Number(e.places) || 0;
   const closed = e.inscriptionsClosed;
   
@@ -582,9 +587,7 @@ function adminCard(e) {
   </div>`;
 }
 
-// ----------------------------------------------------
-// MODULE APPEL AS 2.0 : ENTRAINEMENTS + COMPETITIONS
-// ----------------------------------------------------
+// MODULE APPEL AS 2.0
 const TRAINING_SCHEDULE = {
   1: 'Futsal',
   2: 'Sports collectifs',
@@ -618,8 +621,8 @@ function attendanceParticipants() {
 
 function previousTrainingSession(activity, date) {
   return S.attendance
-    .filter(s => s.type === 'training' && s.activity === activity && s.date < date)
-    .sort((a,b) => b.date.localeCompare(a.date))[0] || null;
+    .filter(s => s.type === 'training' && s.activity === activity && (s.date||'') < date)
+    .sort((a,b) => (b.date||'').localeCompare(a.date||''))[0] || null;
 }
 
 function orderedTrainingRoster() {
@@ -635,8 +638,6 @@ function orderedTrainingRoster() {
 
 function attendanceEditable(session) {
   if (S.isAdmin) return true;
-  // Les enseignants peuvent faire l'appel du jour et des séances futures.
-  // Toute séance passée (entraînement ou compétition) est réservée aux administrateurs.
   const eventDate = S.attendanceType === 'competition'
     ? (S.events.find(e=>e.id===S.attendanceEventId)?.date || '')
     : S.attendanceDate;
@@ -689,8 +690,8 @@ window.setAttendanceType = type => {
     S.attendanceDate = S.attendanceDate || getTodayString();
     S.attendanceActivity = scheduledActivity(S.attendanceDate);
   } else {
-    const events = [...S.events].sort((a,b) => a.date.localeCompare(b.date));
-    S.attendanceEventId = events.find(e => e.date >= getTodayString())?.id || events[0]?.id || '';
+    const events = [...S.events].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    S.attendanceEventId = events.find(e => (e.date||'') >= getTodayString())?.id || events[0]?.id || '';
   }
   render();
 };
@@ -795,8 +796,8 @@ window.exportAttendancePDF = () => {
 function renderAppelNatif() {
   if (!S.attendanceDate) S.attendanceDate = getTodayString();
   if (!S.attendanceActivity && S.attendanceType === 'training') S.attendanceActivity = scheduledActivity(S.attendanceDate);
-  const events = [...S.events].sort((a,b)=>a.date.localeCompare(b.date));
-  const selectedEvent = events.find(e=>e.id===S.attendanceEventId) || events.find(e=>e.date>=getTodayString()) || events[0];
+  const events = [...S.events].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const selectedEvent = events.find(e=>e.id===S.attendanceEventId) || events.find(e=>(e.date||'')>=getTodayString()) || events[0];
   if (selectedEvent && selectedEvent.id !== S.attendanceEventId) S.attendanceEventId = selectedEvent.id;
   const session = currentAttendance();
   const participants = S.attendanceType === 'training' ? orderedTrainingRoster() : attendanceParticipants();
@@ -810,6 +811,7 @@ function renderAppelNatif() {
   const addable = activeLicencies().filter(l=>!participants.some(p=>p.id===l.id));
   const lastSession = S.attendanceType === 'training' ? previousTrainingSession(activity, S.attendanceDate) : null;
   let listHtml = '';
+  
   if (S.attendanceType === 'training' && !activity) {
     listHtml = `<div class="module-warning">Aucun entraînement n'est programmé ce jour-là. Le planning est limité au lundi, mardi, jeudi et vendredi. Choisis une autre date.</div>`;
   } else if (S.attendanceType === 'competition' && !selectedEvent) {
@@ -1326,6 +1328,7 @@ document.addEventListener('click', async (ev) => {
       const uid = btn.dataset.uid; 
       const evtId = btn.dataset.evt;
 
+      // Corrections massives : Utilisation systématique de la bonne méthode Firebase (doc + collection assignée au lieu des vieilles fonctions dref / col)
       if(a === 'toggle-appel') {
           const docId = `${evtId}_${uid}`;
           const isPresent = S.inscriptions.some(i => i.id === docId);
@@ -1333,13 +1336,13 @@ document.addEventListener('click', async (ev) => {
           btn.innerHTML = '<span class="spin" style="width:14px;height:14px;border-width:2px;border-top-color:var(--muted)"></span>';
           
           if(isPresent) {
-              await deleteDoc(dref('inscriptions', docId));
+              await deleteDoc(doc(db, 'as_inscriptions', docId));
               btn.classList.remove('present');
               btn.innerHTML = 'P';
               btn.parentElement.style.background = 'white';
               btn.parentElement.style.borderColor = 'var(--line)';
           } else {
-              await setDoc(dref('inscriptions', docId), { eventId:evtId, userId:uid, timestamp:Date.now() });
+              await setDoc(doc(db, 'as_inscriptions', docId), { eventId:evtId, userId:uid, timestamp:Date.now() });
               btn.classList.add('present');
               btn.innerHTML = '<i class="ph-bold ph-check"></i>';
               btn.parentElement.style.background = 'var(--as-green-light)';
@@ -1356,7 +1359,7 @@ document.addEventListener('click', async (ev) => {
       
       if(a === 'toggle-lock') {
           const e = S.events.find(x => x.id === id);
-          if(e) { await updateDoc(dref('evenements', id), { inscriptionsClosed: !e.inscriptionsClosed }); toast(e.inscriptionsClosed ? 'Inscriptions rouvertes' : 'Inscriptions fermées'); }
+          if(e) { await updateDoc(doc(db, 'as_events', id), { inscriptionsClosed: !e.inscriptionsClosed }); toast(e.inscriptionsClosed ? 'Inscriptions rouvertes' : 'Inscriptions fermées'); }
       }
       
       if(a === 'edit-event') {
@@ -1388,7 +1391,7 @@ document.addEventListener('click', async (ev) => {
                   const inscripts = S.inscriptions.filter(i => i.userId === uid || i.userId === u.licencieId);
                   const batch = writeBatch(db);
                   batch.delete(doc(C_USERS, uid));
-                  inscripts.forEach(i => batch.delete(dref('inscriptions', i.id)));
+                  inscripts.forEach(i => batch.delete(doc(db, 'as_inscriptions', i.id)));
                   await batch.commit();
                   toast('Compte App. supprimé');
               } catch(err) {
@@ -1403,18 +1406,18 @@ document.addEventListener('click', async (ev) => {
           const regUserId = S.profile?.licencieId || S.user.uid;
           const docId = `${id}_${regUserId}`;
           
-          if (a === 'register') await setDoc(dref('inscriptions', docId), { eventId:id, userId:regUserId, timestamp:Date.now() });
-          else await deleteDoc(dref('inscriptions', docId));
+          if (a === 'register') await setDoc(doc(db, 'as_inscriptions', docId), { eventId:id, userId:regUserId, timestamp:Date.now() });
+          else await deleteDoc(doc(db, 'as_inscriptions', docId));
       }
       if(a === 'delete-event') {
           if (confirm("Supprimer définitivement cet événement ?")) {
-              await deleteDoc(dref('evenements', id));
+              await deleteDoc(doc(db, 'as_events', id));
               S.detailId = null; toast('Supprimé avec succès');
           }
       }
       if(a === 'toggle-past') {
           const e = S.events.find(x => x.id === id);
-          if(e) { await updateDoc(dref('evenements', id), { isPast: !e.isPast }); toast('Statut modifié'); S.detailId=null; try{render()}catch(e){} }
+          if(e) { await updateDoc(doc(db, 'as_events', id), { isPast: !e.isPast }); toast('Statut modifié'); S.detailId=null; try{render()}catch(e){} }
       }
   }
   
@@ -1475,7 +1478,8 @@ document.addEventListener('click', async (ev) => {
                       
                       const exists = S.events.some(e => e.titre === titre && e.date === dateFormatee);
                       if(!exists) {
-                          const newDoc = doc(col('evenements'));
+                          // Correction : On utilise C_EVENTS, collection unifiée
+                          const newDoc = doc(C_EVENTS);
                           batch.set(newDoc, {
                               titre: titre,
                               date: dateFormatee,
@@ -1577,13 +1581,14 @@ document.addEventListener('submit', async (ev) => {
       };
 
       if (S.editId) {
-          await updateDoc(dref('evenements', S.editId), eventData);
+          // Correction : doc + db unifié
+          await updateDoc(doc(db, 'as_events', S.editId), eventData);
           toast('Événement modifié !');
           S.editId = null;
       } else {
           eventData.isPast = false; 
           eventData.createdAt = Date.now();
-          await addDoc(col('evenements'), eventData);
+          await addDoc(C_EVENTS, eventData);
           toast('Événement ajouté !');
       }
       
