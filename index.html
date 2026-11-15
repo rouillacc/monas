@@ -301,7 +301,6 @@ const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');
 const $head = document.getElementById('header-actions'); 
 
-// Fetch de la base commune dès le chargement pour le menu d'inscription
 onSnapshot(C_LICENCIES, s => { 
     S.licencies = s.docs.map(d => ({id:d.id, ...d.data()})); 
     try{render()}catch(e){} 
@@ -1719,7 +1718,16 @@ document.addEventListener('submit', async (ev) => {
     }
   } catch (err) {
     btn.innerHTML = initialBtnHTML;
-    toast(err.code === 'auth/invalid-credential' ? 'Identifiants incorrects' : 'Une erreur est survenue', 'error');
+    console.error("Détail de l'erreur :", err);
+    
+    let msg = "Une erreur est survenue.";
+    if (err.code === 'auth/invalid-credential') msg = "Identifiants incorrects.";
+    else if (err.code === 'auth/email-already-in-use') msg = "Cette adresse email est déjà utilisée.";
+    else if (err.code === 'auth/weak-password') msg = "Le mot de passe est trop faible (6 caractères min).";
+    else if (err.code === 'auth/invalid-email') msg = "Format d'email invalide.";
+    else if (err.code === 'permission-denied') msg = "Permission refusée par la base de données.";
+    
+    toast(msg, 'error');
   }
 });
 
