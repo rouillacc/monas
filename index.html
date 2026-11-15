@@ -1288,7 +1288,7 @@ window.importCSV = async (e) => {
                 const separator = l.includes(';') ? ';' : ',';
                 let parts = l.split(separator).map(p => p.replace(/^"|"$/g, "").trim());
                 
-                if (idx === 0 || l.toLowerCase().includes("numéro de licence")) continue;
+                if (idx === 0 || l.toLowerCase().includes("numéro de licence") || l.toLowerCase().includes("numã©ro de licence")) continue;
                 
                 const nom = parts[1] ? String(parts[1]).trim() : "";
                 const prenom = parts[2] ? String(parts[2]).trim() : "";
