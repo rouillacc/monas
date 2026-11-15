@@ -222,10 +222,7 @@ nav button.active i{transform:scale(1.15)}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <input class="input" id="new-lastname" type="text" placeholder="Nom">
       <input class="input" id="new-firstname" type="text" placeholder="Prénom">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <input class="input" id="new-class" type="text" placeholder="Classe (ex: 6C)">
-          <input class="input" id="new-birth" type="date" title="Date de naissance (Pour catégories UNSS)">
-      </div>
+      <input class="input" id="new-birth" type="date" title="Date de naissance (Pour catégories UNSS)">
       <button class="btn btn-primary" type="button" onclick="addStudentManual()">Ajouter Licencié</button>
     </div>
 
@@ -233,16 +230,15 @@ nav button.active i{transform:scale(1.15)}
 
     <div style="margin-top:20px;padding:16px;border:2px dashed var(--line);border-radius:16px;text-align:center;background:var(--bg);">
       <label style="cursor:pointer;font-weight:800;color:var(--as-green);display:block;">
-        📥 Importer CSV Licenciés
+        📥 Import direct du fichier CSV d'OPUSS/UNSS
         <input type="file" id="csv-file" accept=".csv,text/csv" style="display:none;" onchange="importCSV(event)">
       </label>
-      <small style="color:var(--muted);display:block;margin-top:6px;">Format: Nom ; Prénom ; Classe ; Sexe ; Date Naissance</small>
+      <small style="color:var(--muted);display:block;margin-top:6px;">Le fichier sera lu et analysé automatiquement.</small>
     </div>
   </div>
 </div>
 
 <script type="module">
-// Utilisation de la version stable la plus récente pour éviter les erreurs 404 du CDN
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
@@ -836,7 +832,7 @@ function renderAppelNatif() {
       return `<div class="attendance-row">
         <div class="att-info">
           <span class="att-name">${esc(fullName(p))}</span>
-          <span class="att-meta">${esc(p.class || 'Classe non renseignée')}${S.attendanceType==='competition' && !isRegistered ? ' · Ajout manuel' : ''}</span>
+          <span class="att-meta">${S.attendanceType==='competition' && !isRegistered ? 'Ajout manuel' : 'Licencié(e)'}</span>
         </div>
         ${S.attendanceType==='competition' ? `<button class="icon-action" title="Retirer de cet appel" onclick="removeCompetitionParticipant('${p.id}')" ${editable?'':'disabled'}><i class="ph-bold ph-user-minus"></i></button>` : ''}
         <button class="attendance-state ${isPresent?'present':'absent'}" ${editable?'':'disabled'} onclick="toggleAttendance('${p.id}')">${isPresent?'✓ PRÉSENT':'ABSENT'}</button>
@@ -911,19 +907,15 @@ function renderBilanNatif() {
     const present=sessions.reduce((n,x)=>n+presentIdsFor(x).length,0);
     return `<div class="bilan-row"><strong>${esc(activity)}</strong><span style="font-weight:900;color:var(--as-green)">${present}/${possible} présences</span></div>`;
   }).join('');
-  const classSummary = [...new Set(activeLicencies().map(l=>l.class).filter(Boolean))].sort().map(cl=>{
-    const members=activeLicencies().filter(l=>l.class===cl);
-    const eligible=members.reduce((n,l)=>n+attendanceStatsForStudent(l.id).totalEligible,0);
-    const pres=members.reduce((n,l)=>n+attendanceStatsForStudent(l.id).totalPresent,0);
-    return `<div class="bilan-row"><strong>${esc(cl)}</strong><span style="font-weight:900;color:var(--as-green)">${pres}/${eligible} présences</span></div>`;
-  }).join('');
+  
   const rowsHtml = rows.map(({lic,stats})=>`
-    <div class="bilan-row" data-name="${esc((fullName(lic)+' '+(lic.class||'')).toLowerCase())}" style="${term && !(fullName(lic)+' '+(lic.class||'')).toLowerCase().includes(term)?'display:none;':''}">
-      <div><strong style="display:block;font-size:14px;">${esc(fullName(lic))}</strong><small style="color:var(--muted);font-weight:700;">Classe ${esc(lic.class||'—')}</small>
+    <div class="bilan-row" data-name="${esc((fullName(lic)).toLowerCase())}" style="${term && !(fullName(lic)).toLowerCase().includes(term)?'display:none;':''}">
+      <div><strong style="display:block;font-size:14px;">${esc(fullName(lic))}</strong><small style="color:var(--muted);font-weight:700;">Licencié(e)</small>
         <div class="bilan-metrics" style="margin-top:7px;"><span>Entraînements : ${stats.trainingPresent}/${stats.trainingEligible}</span><span>Compétitions : ${stats.compPresent}/${stats.compEligible}</span></div>
       </div>
       <div style="text-align:center;background:var(--as-green-light);color:var(--as-green-dark);padding:8px 10px;border-radius:12px;min-width:58px;"><b style="font-size:19px;display:block;">${stats.rate}%</b><small style="font-weight:800;">${stats.totalPresent} prés.</small></div>
     </div>`).join('');
+    
   return `
     <div class="admin-banner"><i class="ph-fill ph-chart-line-up" style="font-size:24px;color:var(--as-green-light)"></i>Bilans et assiduité</div>
     <div class="stats">
@@ -933,14 +925,13 @@ function renderBilanNatif() {
       <div class="stat"><b>${competitionSessions}</b><span>Compétitions</span></div>
     </div>
     <div class="card">
-      <div class="field"><label>Rechercher un licencié ou une classe</label><input class="input" type="search" placeholder="Nom, prénom, classe..." value="${esc(S.bilanSearch||'')}" oninput="updateBilanSearch(this.value)"></div>
+      <div class="field"><label>Rechercher un licencié</label><input class="input" type="search" placeholder="Nom, prénom..." value="${esc(S.bilanSearch||'')}" oninput="updateBilanSearch(this.value)"></div>
       <div class="grid2">
         <button class="btn btn-ghost" onclick="exportBilanPDF()"><i class="ph-bold ph-file-pdf"></i> PDF</button>
         <button class="btn btn-primary" onclick="exportBilanExcel()"><i class="ph-bold ph-file-xls"></i> Excel</button>
       </div>
     </div>
     ${activitySummary ? `<div class="section-title">Bilan par activité</div>${activitySummary}` : ''}
-    ${classSummary ? `<div class="section-title">Bilan par classe</div>${classSummary}` : ''}
     <div class="section-title">Assiduité par licencié (${rows.length})</div>
     ${rowsHtml || '<div class="empty">Aucun licencié correspondant.</div>'}
   `;
@@ -956,7 +947,7 @@ window.updateBilanSearch = value => {
 function buildBilanRows() {
   return [...S.licencies].sort((a,b)=>fullName(a).localeCompare(fullName(b),'fr')).map(lic=>{
     const st=attendanceStatsForStudent(lic.id);
-    return {Nom:lic.lastname||'',Prenom:lic.firstname||'',Classe:lic.class||'',Presences_entrainements:st.trainingPresent,Seances_entrainement_eligibles:st.trainingEligible,Presences_competitions:st.compPresent,Competitions_eligibles:st.compEligible,Total_presences:st.totalPresent,Seances_eligibles:st.totalEligible,Taux_presence:st.rate+'%'};
+    return {Nom:lic.lastname||'',Prenom:lic.firstname||'',Sexe:lic.sexe||'',Date_Naissance:lic.dateNaissance||'',Presences_entrainements:st.trainingPresent,Seances_entrainement_eligibles:st.trainingEligible,Presences_competitions:st.compPresent,Competitions_eligibles:st.compEligible,Total_presences:st.totalPresent,Seances_eligibles:st.totalEligible,Taux_presence:st.rate+'%'};
   });
 }
 window.exportBilanExcel = () => {
@@ -980,22 +971,25 @@ window.exportBilanPDF = () => {
   let y=38; const rows=buildBilanRows();
   rows.forEach((r,i)=>{
     if(y>280){pdf.addPage();y=18;}
-    pdf.text(`${r.Nom.toUpperCase()} ${r.Prenom} (${r.Classe}) - ${r.Total_presences} présences / ${r.Seances_eligibles} séances - ${r.Taux_presence}`,14,y); y+=7;
+    pdf.text(`${r.Nom.toUpperCase()} ${r.Prenom} - ${r.Total_presences} présences / ${r.Seances_eligibles} séances - ${r.Taux_presence}`,14,y); y+=7;
   });
   pdf.save(`Bilan_AS_${getTodayString()}.pdf`);
 };
 
 function renderLicenciesPage() {
-  const classes=[...new Set(activeLicencies().map(x=>x.class).filter(Boolean))].sort();
+  const filles = activeLicencies().filter(l=>l.sexe==='F').length;
+  const garcons = activeLicencies().filter(l=>l.sexe==='G').length;
   return `
     <div class="admin-banner"><i class="ph-fill ph-users-three" style="font-size:24px;color:var(--as-green-light)"></i>Base commune des licenciés</div>
-    <div class="stats"><div class="stat"><b>${activeLicencies().length}</b><span>Licenciés</span></div><div class="stat"><b>${classes.length}</b><span>Classes</span></div></div>
+    <div class="stats">
+      <div class="stat"><b>${activeLicencies().length}</b><span>Licenciés</span></div>
+      <div class="stat"><b>${filles}</b><span>Filles</span></div>
+      <div class="stat"><b>${garcons}</b><span>Garçons</span></div>
+    </div>
     <div class="card">
       <p style="font-size:13px;color:var(--muted);font-weight:600;margin-bottom:14px;">Cette base est partagée par les inscriptions aux compétitions et les appels des entraînements.</p>
       <button class="btn btn-primary" onclick="document.getElementById('roster-modal').style.display='flex';renderRosterModal()"><i class="ph-bold ph-users"></i> Gérer les licenciés</button>
     </div>
-    <div class="section-title">Répartition par classe</div>
-    ${classes.map(c=>`<div class="bilan-row"><strong>${esc(c)}</strong><b style="color:var(--as-green)">${activeLicencies().filter(l=>l.class===c).length}</b></div>`).join('')}
   `;
 }
 
@@ -1156,10 +1150,7 @@ function renderSheet() {
           else if (diff === 13 || diff === 14) cat = 'M';
           else cat = 'A';
       } else {
-          const cl = (p.class || '').toLowerCase();
-          if (cl.includes('6') || cl.includes('5')) cat = 'B';
-          else if (cl.includes('4') || cl.includes('3')) cat = 'M';
-          else cat = 'A';
+          cat = 'A';
       }
 
       if (cat === 'B') { sx === 'F' ? groups.BF.push(p) : groups.BG.push(p); }
@@ -1185,7 +1176,7 @@ function renderSheet() {
             <div style="flex:1">
                 <b style="font-size:15px; color:var(--text); display:block;">${S.isAdmin ? esc((p.lastname||'').toUpperCase() + ' ' + (p.firstname||'')) : esc((p.firstname||'') + ' ' + ((p.lastname||'').trim().charAt(0).toUpperCase() || '') + '.')}</b>
                 <div style="font-size:12px;color:var(--muted); font-weight:600; margin-top:2px;">
-                    ${S.isAdmin ? `Classe ${esc(p.class)}` : 'Licencié(e) AS'}
+                    Licencié(e) UNSS
                     ${S.isAdmin && tel ? ` · Tél: ${esc(tel)}` : ''}
                 </div>
             </div>
@@ -1235,7 +1226,7 @@ window.renderRosterModal = () => {
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--as-gray); border-radius:12px; border:1px solid var(--line);">
             <div>
                 <strong style="display:block; font-size:15px;">${esc((lic.lastname||'').toUpperCase())} ${esc(lic.firstname)}</strong>
-                <small style="color:var(--muted); font-size:12px; font-weight:600;">Classe ${esc(lic.class)} · ${esc(lic.sexe||'?')} · ${esc(lic.dateNaissance||'-')}</small>
+                <small style="color:var(--muted); font-size:12px; font-weight:600;">${esc(lic.sexe||'?')} · Né(e) le ${esc(lic.dateNaissance||'-')}</small>
             </div>
             <button onclick="deleteStudentManual('${lic.id}')" style="background:#fee2e2; color:var(--red); width:32px; height:32px; border-radius:8px; display:grid; place-items:center; font-size:16px;"><i class="ph-bold ph-trash"></i></button>
         </div>
@@ -1245,7 +1236,6 @@ window.renderRosterModal = () => {
 window.addStudentManual = async () => {
     const l = document.getElementById('new-lastname').value.trim();
     const f = document.getElementById('new-firstname').value.trim();
-    const c = document.getElementById('new-class').value.trim();
     const d = document.getElementById('new-birth').value;
     
     if(!l || !f) return toast("Nom et Prénom obligatoires", "error");
@@ -1254,11 +1244,10 @@ window.addStudentManual = async () => {
     if(exists) return toast("Cet élève existe déjà", "error");
     
     try {
-        await addDoc(C_LICENCIES, { lastname: l, firstname: f, class: c, dateNaissance: d, active: true });
+        await addDoc(C_LICENCIES, { lastname: l, firstname: f, class: "", sexe: "", dateNaissance: d, active: true });
         toast("Élève ajouté !");
         document.getElementById('new-lastname').value = '';
         document.getElementById('new-firstname').value = '';
-        document.getElementById('new-class').value = '';
         document.getElementById('new-birth').value = '';
         setTimeout(window.renderRosterModal, 500);
     } catch(e) { toast("Erreur", "error"); }
@@ -1280,7 +1269,7 @@ window.importCSV = async (e) => {
     
     const inputEl = e.target;
     inputEl.disabled = true;
-    toast("Analyse du fichier en cours...", "info");
+    toast("Analyse du fichier UNSS en cours...", "info");
     
     const reader = new FileReader();
     
@@ -1296,21 +1285,21 @@ window.importCSV = async (e) => {
         try {
             for (let idx = 0; idx < lines.length; idx++) {
                 const l = lines[idx];
-                
                 const separator = l.includes(';') ? ';' : ',';
                 let parts = l.split(separator).map(p => p.replace(/^"|"$/g, "").trim());
                 
-                if (idx === 0 && (parts[0].toLowerCase().includes("nom") || parts[0].toLowerCase().includes("licence") || parts[0].toLowerCase().includes("élève"))) continue;
+                if (idx === 0 || l.toLowerCase().includes("numéro de licence")) continue;
                 
-                if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); 
+                const nom = parts[1] ? String(parts[1]).trim() : "";
+                const prenom = parts[2] ? String(parts[2]).trim() : "";
+                const dateN = parts[3] ? String(parts[3]).trim() : ""; 
+                const categorie = parts[4] ? String(parts[4]).trim().toUpperCase() : "";
+                
+                let sexe = "";
+                if (categorie.endsWith("F")) sexe = "F";
+                else if (categorie.endsWith("G")) sexe = "G";
 
-                const nom = parts[0] ? String(parts[0]).trim() : "";
-                const prenom = parts[1] ? String(parts[1]).trim() : "";
-                const classe = parts[2] ? String(parts[2]).trim() : "";
-                const sexe = parts[3] ? String(parts[3]).trim().toUpperCase().charAt(0) : "";
-                const dateN = parts[4] ? String(parts[4]).trim() : ""; 
-
-                if (nom && prenom) {
+                if (nom && prenom && !nom.toLowerCase().includes("nom")) {
                     const uniqueKey = `${nom.toLowerCase()}_${prenom.toLowerCase()}`;
                     
                     const alreadyExistsInDB = S.licencies.some(s => (s.lastname||'').trim().toLowerCase() === nom.toLowerCase() && (s.firstname||'').trim().toLowerCase() === prenom.toLowerCase());
@@ -1328,7 +1317,7 @@ window.importCSV = async (e) => {
                         currentBatch.set(newDocRef, { 
                             lastname: nom, 
                             firstname: prenom, 
-                            class: classe, 
+                            class: "", 
                             sexe: sexe, 
                             dateNaissance: finalDate, 
                             active: true 
@@ -1338,7 +1327,7 @@ window.importCSV = async (e) => {
                         opCount++;
 
                         if (opCount === 490) {
-                            toast("Envoi d'un lot en cours... ne quittez pas la page.", "info");
+                            toast("Envoi d'un lot en cours...", "info");
                             await currentBatch.commit(); 
                             currentBatch = writeBatch(db); 
                             opCount = 0;
@@ -1355,14 +1344,14 @@ window.importCSV = async (e) => {
                 toast(`${addedCount} nouveaux licenciés importés !`);
                 setTimeout(window.renderRosterModal, 500);
             } else {
-                toast("Aucun nouveau licencié trouvé (ils sont tous déjà inscrits).", "info");
+                toast("Aucun nouveau licencié trouvé.", "info");
             }
         } catch (error) {
-            console.error("Erreur Firebase lors de l'import :", error);
+            console.error("Erreur Firebase :", error);
             if (error.code === 'permission-denied') {
-                toast("Erreur : Firebase refuse l'écriture (Vérifiez les règles Firestore).", "error");
+                toast("Erreur : Firebase refuse l'écriture.", "error");
             } else {
-                toast("Erreur réseau ou limite de base de données atteinte.", "error");
+                toast("Erreur réseau ou limite base atteinte.", "error");
             }
         } finally {
             inputEl.disabled = false;
@@ -1397,6 +1386,40 @@ window.nettoyerDoublons = async () => {
         setTimeout(window.renderRosterModal, 500);
     } else {
         toast("Aucun doublon trouvé dans la base.");
+    }
+};
+
+window.supprimerTousLesEleves = async () => {
+    if (!confirm("ATTENTION : Êtes-vous sûr de vouloir supprimer TOUS les licenciés de la base de données ?")) return;
+    
+    let count = 0;
+    let currentBatch = writeBatch(db);
+    let batchCount = 0;
+    const batches = [];
+    
+    for (const lic of S.licencies) {
+        currentBatch.delete(doc(db, 'as_licencies', lic.id));
+        count++;
+        batchCount++;
+        
+        if (batchCount === 490) {
+            batches.push(currentBatch.commit());
+            currentBatch = writeBatch(db);
+            batchCount = 0;
+        }
+    }
+    
+    if (batchCount > 0) {
+        batches.push(currentBatch.commit());
+    }
+    
+    if (count > 0) {
+        toast(`Suppression de ${count} licenciés en cours...`, "info");
+        await Promise.all(batches);
+        toast("Tous les licenciés ont été définitivement supprimés !");
+        setTimeout(window.renderRosterModal, 500);
+    } else {
+        toast("La base est déjà vide.", "info");
     }
 };
 
