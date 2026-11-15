@@ -59,18 +59,15 @@ button{cursor:pointer;border:none;background:none;outline:none;}
     box-shadow: 0 0 60px rgba(0,0,0,.1);
 }
 
-/* Style de l'application sur grand écran */
 @media (min-width: 600px) {
     #shell { 
-        max-width: 480px; /* Conserve une largeur type smartphone */
+        max-width: 480px; 
         margin: 20px auto; 
-        border-radius: 32px; /* Coins arrondis pour faire "app" */
-        height: calc(100vh - 40px); /* Laisse un peu d'espace en haut et en bas */
-        border: 8px solid #374151; /* Simulation de bordure de téléphone */
+        border-radius: 32px; 
+        height: calc(100vh - 40px); 
+        border: 8px solid #374151; 
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     }
-    
-    /* Assure que la barre de navigation reste ancrée au shell et non à la page entière */
     nav {
         position: absolute;
         left: 16px;
@@ -189,12 +186,12 @@ nav button.active i{transform:scale(1.15)}
 .attendance-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#e9eef0;padding:5px;border-radius:16px;margin-bottom:16px}
 .attendance-switch button{padding:12px 8px;border-radius:12px;font-weight:800;color:#52606d}
 .attendance-switch button.active{background:#fff;color:var(--as-green);box-shadow:0 3px 10px rgba(0,0,0,.08)}
-.attendance-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px 12px;margin-bottom:8px}
+.attendance-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px 12px;margin-bottom:8px; transition:0.2s;}
 .attendance-row .att-info{flex:1;min-width:0}
 .attendance-row .att-name{font-size:14px;font-weight:800;color:var(--as-black);display:block}
 .attendance-row .att-meta{font-size:11px;color:var(--muted);font-weight:600}
-.attendance-state{min-width:92px;padding:11px 8px;border-radius:12px;font-size:12px;font-weight:900}
-.attendance-state.present{background:var(--as-green-light);color:var(--as-green-dark);border:1px solid var(--as-green)}
+.attendance-state{min-width:92px;padding:11px 8px;border-radius:12px;font-size:12px;font-weight:900; transition:0.2s;}
+.attendance-state.present{background:var(--as-green);color:white;border:1px solid var(--as-green-dark); box-shadow:0 4px 10px rgba(26,92,56,0.3);}
 .attendance-state.absent{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
 .attendance-state:disabled{opacity:.55}
 .attendance-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
@@ -206,9 +203,6 @@ nav button.active i{transform:scale(1.15)}
 .bilan-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px}
 .bilan-metrics{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;font-weight:800;color:var(--muted)}
 .bilan-metrics span{background:var(--as-gray);padding:5px 8px;border-radius:8px}
-.admin-shortcut{display:flex;align-items:center;gap:12px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:16px;margin-bottom:10px;text-align:left;width:100%}
-.admin-shortcut i{font-size:22px;color:var(--as-green)}
-.admin-shortcut span{font-weight:800;color:var(--as-black)}
 @media(max-width:380px){.attendance-state{min-width:76px;font-size:11px}.attendance-row{padding:9px}.attendance-summary b{font-size:19px}}
 </style>
 </head>
@@ -646,20 +640,23 @@ const fullName = lic => `${(lic.lastname || '').toUpperCase()} ${lic.firstname |
 const activeLicencies = () => S.licencies.filter(l => l.active !== false);
 
 function attendanceParticipants() {
-  if (S.attendanceType === 'training') {
-      return [...activeLicencies()].sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
-  }
-  const eventId = S.attendanceEventId;
-  if (!eventId) return [];
-  const registered = S.inscriptions.filter(i => i.eventId === eventId).map(i => i.userId);
-  const session = currentAttendance();
-  const extras = Array.isArray(session?.extraIds) ? session.extraIds : [];
-  const excluded = Array.isArray(session?.excludedIds) ? session.excludedIds : [];
-  const ids = [...new Set([...registered, ...extras])].filter(id => !excluded.includes(id));
+  let list = [...activeLicencies()];
   
-  return ids.map(id => S.licencies.find(l => l.id === id))
-            .filter(Boolean)
-            .sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
+  // Entraînement : Tri strictement alphabétique
+  if (S.attendanceType === 'training') {
+      return list.sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
+  }
+  
+  // Compétition : Tri des élèves inscrits d'abord, puis ordre alphabétique
+  const eventId = S.attendanceEventId;
+  const registered = new Set(S.inscriptions.filter(i => i.eventId === eventId).map(i => i.userId));
+  
+  return list.sort((a,b) => {
+      const aReg = registered.has(a.id) ? -1 : 1;
+      const bReg = registered.has(b.id) ? -1 : 1;
+      if (aReg !== bReg) return aReg - bReg;
+      return fullName(a).localeCompare(fullName(b), 'fr');
+  });
 }
 
 function previousTrainingSession(activity, date) {
@@ -685,15 +682,10 @@ async function persistAttendance(patch = {}) {
   const id = attendanceDocId();
   if (!id || (S.attendanceType === 'competition' && !S.attendanceEventId)) return;
   const existing = currentAttendance() || {};
-  let participants;
-  if (S.attendanceType === 'training') {
-    participants = activeLicencies().map(x=>x.id);
-  } else {
-    const registered = S.inscriptions.filter(i=>i.eventId===S.attendanceEventId).map(i=>i.userId);
-    const extras = patch.extraIds ?? existing.extraIds ?? [];
-    const excluded = patch.excludedIds ?? existing.excludedIds ?? [];
-    participants = [...new Set([...registered, ...extras])].filter(pid=>!excluded.includes(pid) && S.licencies.some(l=>l.id===pid));
-  }
+  
+  // On inclut désormais toute la base active dans le tableau des participants
+  const participants = activeLicencies().map(x=>x.id); 
+  
   const data = {
     type: S.attendanceType,
     date: S.attendanceType === 'training' ? S.attendanceDate : (S.events.find(e => e.id === S.attendanceEventId)?.date || S.attendanceDate),
@@ -701,8 +693,6 @@ async function persistAttendance(patch = {}) {
     eventId: S.attendanceType === 'competition' ? S.attendanceEventId : '',
     participantIds: participants,
     presentIds: presentIdsFor(existing).filter(pid=>participants.includes(pid)),
-    extraIds: existing.extraIds || [],
-    excludedIds: existing.excludedIds || [],
     updatedAt: Date.now(),
     updatedBy: S.user?.uid || '',
     ...patch
@@ -786,35 +776,11 @@ window.clearAttendance = async () => {
   } catch (err) { toast("Erreur lors de l'effacement.", 'error'); }
 };
 
-window.addCompetitionParticipant = async () => {
-  if (!attendanceEditable(currentAttendance())) return toast('Seul un administrateur peut modifier un appel passé.', 'error');
-  const select = document.getElementById('attendance-add-student');
-  const id = select?.value;
-  if (!id) return;
-  const session = currentAttendance() || {};
-  const extras = new Set(session.extraIds || []);
-  const excluded = new Set(session.excludedIds || []);
-  extras.add(id); excluded.delete(id);
-  try {
-    await persistAttendance({extraIds:[...extras], excludedIds:[...excluded]});
-    render();
-  } catch (err) { toast("Impossible d'ajouter cet élève.", 'error'); }
-};
-
-window.removeCompetitionParticipant = async id => {
-  if (!attendanceEditable(currentAttendance())) return toast('Seul un administrateur peut modifier un appel passé.', 'error');
-  const session = currentAttendance() || {};
-  const excluded = new Set(session.excludedIds || []);
-  excluded.add(id);
-  try {
-    await persistAttendance({excludedIds:[...excluded]});
-    render();
-  } catch (err) { toast("Impossible de retirer cet élève.", 'error'); }
-};
-
 window.exportAttendancePDF = () => {
   const session = currentAttendance();
-  const participants = attendanceParticipants().sort((a,b)=>fullName(a).localeCompare(fullName(b),'fr'));
+  // Pour le PDF, on garde toujours un tri alphabétique strict pour la lisibilité sur papier
+  const participants = [...activeLicencies()].sort((a,b)=>fullName(a).localeCompare(fullName(b),'fr'));
+  
   if (!window.jspdf) return toast('Module PDF non disponible.', 'error');
   const docPdf = new window.jspdf.jsPDF();
   const title = S.attendanceType === 'training' ? S.attendanceActivity : (S.events.find(e=>e.id===S.attendanceEventId)?.titre || 'Compétition');
@@ -851,16 +817,15 @@ function renderAppelNatif() {
   if (selectedEvent && selectedEvent.id !== S.attendanceEventId) S.attendanceEventId = selectedEvent.id;
   
   const session = currentAttendance();
-  const participants = S.attendanceType === 'training' ? orderedTrainingRoster() : attendanceParticipants();
+  const participants = attendanceParticipants();
   const present = new Set(presentIdsFor(session));
   const editable = attendanceEditable(session);
   const presentCount = participants.filter(p=>present.has(p.id)).length;
   
   const eventOptions = events.map(e => `<option value="${esc(e.id)}" ${e.id===S.attendanceEventId?'selected':''}>${esc(fmtDate(e.date))} · ${esc(e.titre)}</option>`).join('');
   const activity = S.attendanceActivity || scheduledActivity(S.attendanceDate);
-  const rosterRegistered = S.attendanceType === 'competition' ? new Set(S.inscriptions.filter(i=>i.eventId===S.attendanceEventId).map(i=>i.userId)) : new Set();
   
-  const addable = activeLicencies().filter(l=>!participants.some(p=>p.id===l.id)).sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
+  const rosterRegistered = S.attendanceType === 'competition' ? new Set(S.inscriptions.filter(i=>i.eventId===S.attendanceEventId).map(i=>i.userId)) : new Set();
   
   let listHtml = '';
   
@@ -874,16 +839,31 @@ function renderAppelNatif() {
     listHtml = `<div class="stagger" style="display:flex; flex-direction:column; gap:8px;">` + participants.map(p=>{
       const isPresent = present.has(p.id);
       const isRegistered = rosterRegistered.has(p.id);
-      return `<div class="attendance-row" style="margin-bottom:0;">
+      
+      let rowStyle = 'background:#fff; border:1px solid var(--line);';
+      let nameStyle = 'color:var(--as-black);';
+      let metaText = 'Licencié(e)';
+      
+      if (S.attendanceType === 'competition') {
+          if (isRegistered) {
+              rowStyle = 'background:var(--as-green-light); border:1px solid var(--as-green);';
+              nameStyle = 'color:var(--as-green-dark);';
+              metaText = '✅ Inscrit via l\'app';
+          } else {
+              metaText = 'Non inscrit';
+          }
+      }
+
+      return `<div class="attendance-row" style="margin-bottom:0; ${rowStyle}">
         <div class="att-info">
-          <span class="att-name">${esc(fullName(p))}</span>
-          <span class="att-meta">${S.attendanceType==='competition' && !isRegistered ? 'Ajout manuel' : 'Licencié(e)'}</span>
+          <span class="att-name" style="${nameStyle}">${esc(fullName(p))}</span>
+          <span class="att-meta">${metaText}</span>
         </div>
-        ${S.attendanceType==='competition' ? `<button class="icon-action" title="Retirer de cet appel" onclick="removeCompetitionParticipant('${p.id}')" ${editable?'':'disabled'}><i class="ph-bold ph-user-minus"></i></button>` : ''}
         <button class="attendance-state ${isPresent?'present':'absent'}" ${editable?'':'disabled'} onclick="toggleAttendance('${p.id}')">${isPresent?'✓ PRÉSENT':'ABSENT'}</button>
       </div>`;
     }).join('') + `</div>`;
   }
+  
   return `
     <div class="admin-banner"><i class="ph-fill ph-clipboard-text" style="font-size:24px;color:var(--as-green-light)"></i>Gestion des présences</div>
     <div class="attendance-switch">
@@ -901,13 +881,7 @@ function renderAppelNatif() {
         <small style="display:block;margin-top:9px;color:var(--muted);font-weight:600;">Seules les compétitions récentes ou à venir sont affichées.</small>
       `}
     </div>
-    ${S.attendanceType==='competition' && selectedEvent ? `
-      <div class="card">
-        <div class="field"><label>Ajouter un licencié à l'appel</label>
-          <select class="input" id="attendance-add-student"><option value="">Choisir un licencié non inscrit</option>${addable.map(p=>`<option value="${esc(p.id)}">${esc(fullName(p))}</option>`).join('')}</select>
-        </div>
-        <button class="btn btn-ghost" onclick="addCompetitionParticipant()" ${addable.length && editable?'':'disabled'}><i class="ph-bold ph-user-plus"></i> Ajouter à cet appel</button>
-      </div>` : ''}
+    
     ${participants.length && (S.attendanceType==='training' ? !!activity : !!selectedEvent) ? `
       <div class="attendance-summary">
         <div><b>${participants.length}</b><span>Licenciés</span></div>
@@ -1043,10 +1017,12 @@ function renderHomeAttendanceSummary() {
   const possible=S.attendance.reduce((n,s)=>n+(s.participantIds||[]).length,0);
   const present=S.attendance.reduce((n,s)=>n+presentIdsFor(s).length,0);
   const rate=possible?Math.round(present/possible*100):0;
+  
   const top=activeLicencies().map(lic=>({lic,stats:attendanceStatsForStudent(lic.id)}))
-    .filter(x=>x.stats.totalEligible>0)
-    .sort((a,b)=>b.stats.rate-a.stats.rate || b.stats.totalPresent-a.stats.totalPresent)
+    .filter(x=>x.stats.totalEligible > 0 && x.stats.totalPresent > 0)
+    .sort((a,b)=>b.stats.totalPresent - a.stats.totalPresent || b.stats.rate - a.stats.rate)
     .slice(0,5);
+    
   const last=[...S.attendance].sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
   return `
     <div class="section-title"><i class="ph-fill ph-chart-line-up" style="color:var(--as-green)"></i>Vie de l'AS</div>
@@ -1055,7 +1031,7 @@ function renderHomeAttendanceSummary() {
       <div class="stat"><b>${rate}%</b><span>Taux de présence</span></div>
     </div>
     ${last ? `<div class="module-note"><i class="ph-fill ph-clock-counter-clockwise"></i> Dernière séance enregistrée : ${esc(last.activity==='Compétition'?(S.events.find(e=>e.id===last.eventId)?.titre||'Compétition'):last.activity)} · ${esc(fmtDate(last.date||''))}</div>` : `<div class="module-note">Les statistiques apparaîtront après le premier appel enregistré.</div>`}
-    ${top.length ? `<div class="card"><strong style="display:block;margin-bottom:12px;">🏅 Les plus assidus</strong>${top.map((x,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);"><span style="font-size:13px;font-weight:800;">${i+1}. ${esc(fullName(x.lic))}</span><b style="color:var(--as-green)">${x.stats.rate}%</b></div>`).join('')}</div>` : ''}
+    ${top.length ? `<div class="card"><strong style="display:block;margin-bottom:12px;">🏅 Les plus assidus</strong>${top.map((x,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);"><span style="font-size:13px;font-weight:800;">${i+1}. ${esc(fullName(x.lic))}</span><b style="color:var(--as-green)">${x.stats.totalPresent} prés.</b></div>`).join('')}</div>` : ''}
   `;
 }
 
@@ -1330,7 +1306,6 @@ window.importCSV = async (e) => {
                 
                 if (idx === 0 || l.toLowerCase().includes("numéro de licence") || l.toLowerCase().includes("numã©ro de licence")) continue;
                 
-                // LECTURE DIRECTE SUR LES BONNES COLONNES
                 const nom = parts[1] ? String(parts[1]).trim() : "";
                 const prenom = parts[2] ? String(parts[2]).trim() : "";
                 const dateN = parts[3] ? String(parts[3]).trim() : ""; 
