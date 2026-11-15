@@ -59,15 +59,18 @@ button{cursor:pointer;border:none;background:none;outline:none;}
     box-shadow: 0 0 60px rgba(0,0,0,.1);
 }
 
+/* Style de l'application sur grand écran */
 @media (min-width: 600px) {
     #shell { 
-        max-width: 480px; 
+        max-width: 480px; /* Conserve une largeur type smartphone */
         margin: 20px auto; 
-        border-radius: 32px; 
-        height: calc(100vh - 40px); 
-        border: 8px solid #374151; 
+        border-radius: 32px; /* Coins arrondis pour faire "app" */
+        height: calc(100vh - 40px); /* Laisse un peu d'espace en haut et en bas */
+        border: 8px solid #374151; /* Simulation de bordure de téléphone */
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     }
+    
+    /* Assure que la barre de navigation reste ancrée au shell et non à la page entière */
     nav {
         position: absolute;
         left: 16px;
@@ -186,12 +189,12 @@ nav button.active i{transform:scale(1.15)}
 .attendance-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#e9eef0;padding:5px;border-radius:16px;margin-bottom:16px}
 .attendance-switch button{padding:12px 8px;border-radius:12px;font-weight:800;color:#52606d}
 .attendance-switch button.active{background:#fff;color:var(--as-green);box-shadow:0 3px 10px rgba(0,0,0,.08)}
-.attendance-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px 12px;margin-bottom:8px; transition:0.2s;}
+.attendance-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px 12px;margin-bottom:8px}
 .attendance-row .att-info{flex:1;min-width:0}
 .attendance-row .att-name{font-size:14px;font-weight:800;color:var(--as-black);display:block}
 .attendance-row .att-meta{font-size:11px;color:var(--muted);font-weight:600}
-.attendance-state{min-width:92px;padding:11px 8px;border-radius:12px;font-size:12px;font-weight:900; transition:0.2s;}
-.attendance-state.present{background:var(--as-green);color:white;border:1px solid var(--as-green-dark); box-shadow:0 4px 10px rgba(26,92,56,0.3);}
+.attendance-state{min-width:92px;padding:11px 8px;border-radius:12px;font-size:12px;font-weight:900}
+.attendance-state.present{background:var(--as-green-light);color:var(--as-green-dark);border:1px solid var(--as-green)}
 .attendance-state.absent{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
 .attendance-state:disabled{opacity:.55}
 .attendance-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
@@ -203,6 +206,9 @@ nav button.active i{transform:scale(1.15)}
 .bilan-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px}
 .bilan-metrics{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;font-weight:800;color:var(--muted)}
 .bilan-metrics span{background:var(--as-gray);padding:5px 8px;border-radius:8px}
+.admin-shortcut{display:flex;align-items:center;gap:12px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:16px;margin-bottom:10px;text-align:left;width:100%}
+.admin-shortcut i{font-size:22px;color:var(--as-green)}
+.admin-shortcut span{font-weight:800;color:var(--as-black)}
 @media(max-width:380px){.attendance-state{min-width:76px;font-size:11px}.attendance-row{padding:9px}.attendance-summary b{font-size:19px}}
 </style>
 </head>
@@ -283,7 +289,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 const ADMIN_EMAIL = 'epsclaudie@gmail.com';
-const ACCESS_CODE = 'haignere16';
+const ACCESS_CODE = 'ROUILLAC16';
 
 const C_EVENTS = collection(db, 'as_events');
 const C_INSCRIPT = collection(db, 'as_inscriptions');
@@ -544,11 +550,11 @@ const vStudent = () => {
   if (S.tab === 'gallery') {
       const list = galleryEvents();
       return profileHeader() + `<div class="section-title"><i class="ph-fill ph-images" style="color:var(--orange)"></i>Galerie Photos</div>` +
-        (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>` : `<div class="empty"><div style="font-size:40px; margin-bottom:10px;">📸</div>Aucun album photo disponible.</div>`);
+        (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>` : `<div class="empty" style="grid-column:1/-1;"><div style="font-size:40px; margin-bottom:10px;">📸</div>Aucun album photo disponible.</div>`);
   } else {
       const list = upcomingEvents();
       return profileHeader() + `<div class="section-title"><i class="ph-fill ph-calendar-check" style="color:var(--as-green)"></i>Prochaines Journées</div>` +
-        (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>` : `<div class="empty"><div style="font-size:40px; margin-bottom:10px;">😴</div>Aucun événement à venir.</div>`);
+        (list.length ? `<div class="stagger">${list.map(studentCard).join('')}</div>` : `<div class="empty" style="grid-column:1/-1;"><div style="font-size:40px; margin-bottom:10px;">😴</div>Aucun événement à venir.</div>`);
   }
 };
 
@@ -683,7 +689,7 @@ async function persistAttendance(patch = {}) {
   if (!id || (S.attendanceType === 'competition' && !S.attendanceEventId)) return;
   const existing = currentAttendance() || {};
   
-  // On inclut désormais toute la base active dans le tableau des participants
+  // On inclut désormais toute la base active dans le tableau des participants pour les deux modes
   const participants = activeLicencies().map(x=>x.id); 
   
   const data = {
@@ -741,8 +747,6 @@ window.onAttendanceEventChange = value => {
 window.toggleAttendance = async id => {
   const session = currentAttendance();
   if (!attendanceEditable(session)) return toast('Seul un administrateur peut modifier un appel passé.', 'error');
-  const participants = attendanceParticipants().map(x => x.id);
-  if (!participants.includes(id)) return;
   const present = new Set(presentIdsFor(session));
   present.has(id) ? present.delete(id) : present.add(id);
   try {
@@ -778,9 +782,7 @@ window.clearAttendance = async () => {
 
 window.exportAttendancePDF = () => {
   const session = currentAttendance();
-  // Pour le PDF, on garde toujours un tri alphabétique strict pour la lisibilité sur papier
-  const participants = [...activeLicencies()].sort((a,b)=>fullName(a).localeCompare(fullName(b),'fr'));
-  
+  const participants = attendanceParticipants().sort((a,b)=>fullName(a).localeCompare(fullName(b),'fr'));
   if (!window.jspdf) return toast('Module PDF non disponible.', 'error');
   const docPdf = new window.jspdf.jsPDF();
   const title = S.attendanceType === 'training' ? S.attendanceActivity : (S.events.find(e=>e.id===S.attendanceEventId)?.titre || 'Compétition');
@@ -1727,8 +1729,8 @@ document.addEventListener('submit', async (ev) => {
 window.showLogin = () => { S.view = 'login'; try { render(); } catch(e) {} };
 window.showGuard = () => { S.view = 'guard'; try { render(); } catch(e) {} };
 window.checkCode = () => {
-    const val = document.getElementById('guard-input').value.trim();
-    if(val === ACCESS_CODE) { S.view = 'register'; try{render()}catch(e){} toast('Code validé !'); }
+    const val = document.getElementById('guard-input').value.trim().toUpperCase();
+    if(val === ACCESS_CODE.toUpperCase()) { S.view = 'register'; try{render()}catch(e){} toast('Code validé !'); }
     else { toast('Code d\'accès incorrect', 'error'); }
 };
 
