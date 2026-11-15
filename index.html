@@ -378,7 +378,6 @@ function render() {
   const scroll = $view.scrollTop;
   $head.innerHTML = S.user ? `<button class="icon-btn" onclick="signOutAuth()" aria-label="Déconnexion"><i class="ph-bold ph-sign-out"></i></button>` : '';
 
-  // Correction de la page blanche : Ajout du module de chargement initial.
   if(S.view === 'loading') {
       $view.innerHTML = `<div class="hero" style="padding-top:60px;"><div class="spin" style="width:40px;height:40px;border-width:4px;border-top-color:var(--as-green);margin-bottom:20px;"></div><h2 style="color:var(--muted);font-size:16px;">Connexion au serveur...</h2></div>`;
   }
@@ -1274,64 +1273,62 @@ window.importCSV = async (e) => {
         const lines = evt.target.result.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
         let addedCount = 0;
         
-        const batches = [];
         let currentBatch = writeBatch(db);
         let opCount = 0;
 
-        for (let idx = 0; idx < lines.length; idx++) {
-            const l = lines[idx];
-            
-            const separator = l.includes(';') ? ';' : ',';
-            let parts = l.split(separator).map(p => p.replace(/^"|"$/g, "").trim());
-            
-            if (idx === 0 && (parts[0].toLowerCase().includes("nom") || parts[0].toLowerCase().includes("licence") || parts[0].toLowerCase().includes("élève"))) continue;
-            
-            if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); 
-
-            const nom = parts[0] ? parts[0].trim() : "";
-            const prenom = parts[1] ? parts[1].trim() : "";
-            const classe = parts[2] ? parts[2].trim() : "";
-            const sexe = parts[3] ? parts[3].trim().toUpperCase().charAt(0) : "";
-            const dateN = parts[4] ? parts[4].trim() : ""; 
-
-            if (nom && prenom) {
-                const alreadyExists = S.licencies.some(s => (s.lastname||'').trim().toLowerCase() === nom.toLowerCase() && (s.firstname||'').trim().toLowerCase() === prenom.toLowerCase());
+        try {
+            for (let idx = 0; idx < lines.length; idx++) {
+                const l = lines[idx];
                 
-                if (!alreadyExists) {
-                    let finalDate = dateN;
-                    if(dateN.includes('/')) {
-                        const dparts = dateN.split('/');
-                        if(dparts.length === 3) finalDate = `${dparts[2]}-${dparts[1]}-${dparts[0]}`;
-                    }
-                    
-                    const newDocRef = doc(C_LICENCIES);
-                    currentBatch.set(newDocRef, { 
-                        lastname: nom, 
-                        firstname: prenom, 
-                        class: classe, 
-                        sexe: sexe, 
-                        dateNaissance: finalDate, 
-                        active: true 
-                    });
-                    
-                    addedCount++;
-                    opCount++;
+                const separator = l.includes(';') ? ';' : ',';
+                let parts = l.split(separator).map(p => p.replace(/^"|"$/g, "").trim());
+                
+                if (idx === 0 && (parts[0].toLowerCase().includes("nom") || parts[0].toLowerCase().includes("licence") || parts[0].toLowerCase().includes("élève"))) continue;
+                
+                if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); 
 
-                    if (opCount === 490) {
-                        batches.push(currentBatch.commit());
-                        currentBatch = writeBatch(db);
-                        opCount = 0;
+                const nom = parts[0] ? String(parts[0]).trim() : "";
+                const prenom = parts[1] ? String(parts[1]).trim() : "";
+                const classe = parts[2] ? String(parts[2]).trim() : "";
+                const sexe = parts[3] ? String(parts[3]).trim().toUpperCase().charAt(0) : "";
+                const dateN = parts[4] ? String(parts[4]).trim() : ""; 
+
+                if (nom && prenom) {
+                    const alreadyExists = S.licencies.some(s => (s.lastname||'').trim().toLowerCase() === nom.toLowerCase() && (s.firstname||'').trim().toLowerCase() === prenom.toLowerCase());
+                    
+                    if (!alreadyExists) {
+                        let finalDate = dateN;
+                        if(dateN.includes('/')) {
+                            const dparts = dateN.split('/');
+                            if(dparts.length === 3) finalDate = `${dparts[2]}-${dparts[1]}-${dparts[0]}`;
+                        }
+                        
+                        const newDocRef = doc(C_LICENCIES);
+                        currentBatch.set(newDocRef, { 
+                            lastname: nom, 
+                            firstname: prenom, 
+                            class: classe, 
+                            sexe: sexe, 
+                            dateNaissance: finalDate, 
+                            active: true 
+                        });
+                        
+                        addedCount++;
+                        opCount++;
+
+                        if (opCount === 490) {
+                            toast("Envoi d'un lot en cours... ne quittez pas la page.", "info");
+                            await currentBatch.commit(); 
+                            currentBatch = writeBatch(db); 
+                            opCount = 0;
+                        }
                     }
                 }
             }
-        }
-        
-        try {
-            if(opCount > 0) {
-                batches.push(currentBatch.commit());
-            }
             
-            await Promise.all(batches);
+            if(opCount > 0) {
+                await currentBatch.commit();
+            }
             
             if(addedCount > 0) {
                 toast(`${addedCount} licenciés importés avec succès !`);
@@ -1340,8 +1337,12 @@ window.importCSV = async (e) => {
                 toast("Aucun nouveau licencié trouvé (ils sont peut-être déjà tous inscrits).", "info");
             }
         } catch (error) {
-            console.error("Erreur Firebase lors de l'import :", error);
-            toast("Erreur réseau ou limite de base de données atteinte.", "error");
+            console.error("Erreur Firebase lors de l'import détaillé :", error);
+            if (error.code === 'permission-denied') {
+                toast("Erreur : Firebase refuse l'écriture (Vérifiez les règles Firestore).", "error");
+            } else {
+                toast("Erreur réseau ou limite de base de données atteinte.", "error");
+            }
         }
         
         e.target.value = "";
@@ -1364,7 +1365,6 @@ document.addEventListener('click', async (ev) => {
       const uid = btn.dataset.uid; 
       const evtId = btn.dataset.evt;
 
-      // Corrections massives : Utilisation systématique de la bonne méthode Firebase (doc + collection assignée au lieu des vieilles fonctions dref / col)
       if(a === 'toggle-appel') {
           const docId = `${evtId}_${uid}`;
           const isPresent = S.inscriptions.some(i => i.id === docId);
@@ -1616,7 +1616,6 @@ document.addEventListener('submit', async (ev) => {
       };
 
       if (S.editId) {
-          // Correction : doc + db unifié
           await updateDoc(doc(db, 'as_events', S.editId), eventData);
           toast('Événement modifié !');
           S.editId = null;
