@@ -1267,17 +1267,27 @@ window.deleteStudentManual = async (id) => {
 window.importCSV = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
+    
     const reader = new FileReader();
+    
     reader.onload = async function(evt) {
         const lines = evt.target.result.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
         let addedCount = 0;
-        const batch = writeBatch(db);
+        
+        const batches = [];
+        let currentBatch = writeBatch(db);
+        let opCount = 0;
 
-        lines.forEach((l, idx) => {
-            let parts = l.split(";").map(p => p.replace(/^"|"$/g, "").trim());
-            if (idx === 0 && (parts[0].toLowerCase().includes("nom") || parts[0].toLowerCase().includes("licence"))) return;
-            if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); 
+        for (let idx = 0; idx < lines.length; idx++) {
+            const l = lines[idx];
             
+            const separator = l.includes(';') ? ';' : ',';
+            let parts = l.split(separator).map(p => p.replace(/^"|"$/g, "").trim());
+            
+            if (idx === 0 && (parts[0].toLowerCase().includes("nom") || parts[0].toLowerCase().includes("licence") || parts[0].toLowerCase().includes("élève"))) continue;
+            
+            if (/^[0-9]{4,}$/.test(parts[0])) parts.shift(); 
+
             const nom = parts[0] ? parts[0].trim() : "";
             const prenom = parts[1] ? parts[1].trim() : "";
             const classe = parts[2] ? parts[2].trim() : "";
@@ -1295,24 +1305,50 @@ window.importCSV = async (e) => {
                     }
                     
                     const newDocRef = doc(C_LICENCIES);
-                    batch.set(newDocRef, { lastname: nom, firstname: prenom, class: classe, sexe: sexe, dateNaissance: finalDate, active: true });
+                    currentBatch.set(newDocRef, { 
+                        lastname: nom, 
+                        firstname: prenom, 
+                        class: classe, 
+                        sexe: sexe, 
+                        dateNaissance: finalDate, 
+                        active: true 
+                    });
+                    
                     addedCount++;
+                    opCount++;
+
+                    if (opCount === 490) {
+                        batches.push(currentBatch.commit());
+                        currentBatch = writeBatch(db);
+                        opCount = 0;
+                    }
                 }
             }
-        });
-        
-        if(addedCount > 0) {
-            await batch.commit();
-            toast(`${addedCount} licenciés importés !`);
-            setTimeout(window.renderRosterModal, 500);
-        } else {
-            toast("Aucun nouveau licencié trouvé.");
         }
+        
+        try {
+            if(opCount > 0) {
+                batches.push(currentBatch.commit());
+            }
+            
+            await Promise.all(batches);
+            
+            if(addedCount > 0) {
+                toast(`${addedCount} licenciés importés avec succès !`);
+                setTimeout(window.renderRosterModal, 500);
+            } else {
+                toast("Aucun nouveau licencié trouvé (ils sont peut-être déjà tous inscrits).", "info");
+            }
+        } catch (error) {
+            console.error("Erreur Firebase lors de l'import :", error);
+            toast("Erreur réseau ou limite de base de données atteinte.", "error");
+        }
+        
         e.target.value = "";
     };
-    reader.readAsText(f, "UTF-8");
+    
+    reader.readAsText(f, "windows-1252");
 };
-
 
 document.addEventListener('click', async (ev) => {
   const tabBtn = ev.target.closest('[data-tab]');
@@ -1478,7 +1514,6 @@ document.addEventListener('click', async (ev) => {
                       
                       const exists = S.events.some(e => e.titre === titre && e.date === dateFormatee);
                       if(!exists) {
-                          // Correction : On utilise C_EVENTS, collection unifiée
                           const newDoc = doc(C_EVENTS);
                           batch.set(newDoc, {
                               titre: titre,
