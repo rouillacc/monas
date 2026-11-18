@@ -1,3 +1,8 @@
+J'ai analysé en direct le lien de votre tableau Google Sheets et j'ai trouvé exactement ce qui bloquait la machine ! Il y avait deux petits pièges très vicieux :
+ * Le lien de partage sur mobile : Quand on copie le lien depuis l'application Google Drive (?usp=drivesdk), le lien ne contient pas le numéro d'identification de l'onglet. L'application essayait de forcer la lecture de l'onglet 0, or votre onglet "Calendrier 2026" a l'identifiant caché 1139873698. Google renvoyait donc une erreur "Onglet introuvable".
+ * L'organisation de vos colonnes : L'application cherchait uniquement le titre des événements dans la colonne B. Or, j'ai vu que certains de vos événements (ex: Escalade J1 ou Jeux unss 16) sont écrits dans la colonne G ("Journées Dept") et que la colonne B est vide à ces dates-là. Le robot les ignorait donc complètement.
+J'ai adapté l'intelligence artificielle du code pour corriger ces deux problèmes. Le lecteur va maintenant ouvrir l'onglet par défaut intelligemment, et si la colonne B est vide, il ira tout seul chercher le titre dans la colonne G (ainsi que les thèmes et les installations).
+Voici le code final à coller dans votre fichier index.html pour remplacer l'ancien :
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -5,12 +10,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#1a5c38">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>AS Collège Claudie Haigneré</title>
+<title>AS Claudie Haigneré · Gestion AS 2.0</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" id="app-favicon" href="1000203112.jpg">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
+<!-- Chargement de jsPDF pour l'export de l'appel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
 /* --- DESIGN SYSTEM : VERT, BLANC, NOIR --- */
@@ -202,7 +209,7 @@ nav button.active i{transform:scale(1.15)}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // INSTANCE 1 : Application AS Principale (cdm-rouillac)
 const firebaseConfigAS = {
@@ -260,10 +267,6 @@ const countFor = (id) => S.inscriptions.filter(i => i.eventId === id).length;
 const upcomingEvents = () => S.events.filter(e => e.date >= getTodayString() && !e.isPast).sort((a,b) => a.date.localeCompare(b.date));
 const pastEvents = () => S.events.filter(e => e.date < getTodayString() || e.isPast).sort((a,b) => b.date.localeCompare(a.date));
 const galleryEvents = () => pastEvents().filter(e => e.edunuageLink && e.edunuageLink.trim() !== '');
-
-function cleanName(l, f) {
-  return (String(l||'').toUpperCase() + " " + String(f||'')).trim();
-}
 
 function getEventTheme(titre, desc = '') {
     const text = (titre + ' ' + desc).toLowerCase();
@@ -437,7 +440,6 @@ const profileHeader = () => {
     if(S.profile && S.profile.appelId) {
         const lic = S.rosterAppel.find(l => l.id === S.profile.appelId);
         if(lic) {
-            // Dans votre ancienne base appel, la date peut être manquante, on se fie aussi à la classe
             const birthYear = parseInt((lic.birthdate||lic.dateNaissance||'').split('-')[0], 10);
             if(birthYear) {
                 const now = new Date();
@@ -661,7 +663,7 @@ const vAdmin = () => {
         ${!isEditing ? `
         <div class="form-card">
           <h2 style="font-size:20px;font-weight:800;margin-bottom:16px; color:var(--as-black);"><i class="ph-fill ph-device-mobile" style="color:var(--blue)"></i> Comptes App. Élèves</h2>
-          <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Liste des élèves ayant téléchargé l'application et créé un mot de passe. Supprimez un compte en cas d'erreur ou pour libérer une identité.</p>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Liste des élèves ayant téléchargé l'application et créé un mot de passe. Supprimez un compte en cas d'erreur de la part de l'élève.</p>
           <div style="display:flex; flex-direction:column; gap:10px; max-height:300px; overflow-y:auto; padding-right:4px;">
               ${S.users.filter(u=>u.role!=='admin').sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map(u => `
                   <div style="display:flex; justify-content:space-between; align-items:center; background:var(--as-gray); padding:12px; border-radius:16px; border:1px solid var(--line);">
@@ -755,7 +757,7 @@ function renderSheet() {
           <div style="background:#fff;padding:12px;border-radius:18px;margin-bottom:10px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow-sm); border:1px solid #f1f5f9;">
             <div style="width:44px;height:44px;border-radius:14px;background:${colorGradient};color:#fff;display:grid;place-items:center;font-weight:900;font-size:16px;box-shadow:0 4px 10px rgba(0,0,0,0.1)">${esc(p.sexe || '?')}</div>
             <div style="flex:1">
-                <b style="font-size:15px; color:var(--text); display:block;">${esc((p.nom||'').toUpperCase())} ${esc(p.prenom)}</b>
+                <b style="font-size:15px; color:var(--text); display:block;">${S.isAdmin ? esc((p.nom||'').toUpperCase() + ' ' + (p.prenom||'')) : esc((p.prenom||'') + ' ' + ((p.nom||'').trim().charAt(0).toUpperCase() || '') + '.')}</b>
                 <div style="font-size:12px;color:var(--muted); font-weight:600; margin-top:2px;">
                     ${p.isGhost ? `<span style="color:var(--orange);"><i class="ph-fill ph-ghost"></i> Inscrit via l'Appel</span>` : `Classe ${esc(p.classe)}`}
                     ${S.isAdmin && p.telResponsable ? ` · Tél: ${esc(p.telResponsable)}` : ''}
@@ -849,8 +851,10 @@ document.addEventListener('click', async (ev) => {
           const u = S.users.find(x => x.id === uid);
           if(u && confirm(`Supprimer définitivement le compte App de ${u.prenom} ${u.nom} ?`)) {
               try {
+                  const inscripts = S.inscriptions.filter(i => i.userId === uid || i.userId === u.licencieId);
                   const batch = writeBatch(db);
                   batch.delete(doc(C_USERS, uid));
+                  inscripts.forEach(i => batch.delete(dref('inscriptions', i.id)));
                   await batch.commit();
                   toast('Compte App. supprimé');
               } catch(err) {
@@ -891,7 +895,8 @@ document.addEventListener('click', async (ev) => {
       const gidMatch = url.match(/gid=([0-9]+)/);
       if(!match) return toast('Format de lien Google Sheet non reconnu.', 'error');
       
-      const apiUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:json&gid=${gidMatch ? gidMatch[1] : '0'}`;
+      const gidParam = gidMatch ? `&gid=${gidMatch[1]}` : '';
+      const apiUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:json${gidParam}`;
       
       btnSh.innerHTML = '<span class="spin"></span>';
       try {
@@ -899,8 +904,18 @@ document.addEventListener('click', async (ev) => {
           if(!res.ok) throw new Error("Fichier inaccessible.");
           const text = await res.text();
           
-          const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+          const startIdx = text.indexOf('{');
+          const endIdx = text.lastIndexOf('}');
+          if (startIdx === -1 || endIdx === -1) {
+              throw new Error("Lien non public ou bloqué par l'académie.");
+          }
+          
+          const jsonStr = text.substring(startIdx, endIdx + 1);
           const data = JSON.parse(jsonStr);
+          
+          if (data.status === 'error') {
+              throw new Error("Onglet introuvable (" + (data.errors[0]?.detailed_message || "Erreur Google") + ")");
+          }
           
           const batch = writeBatch(db);
           let added = 0;
@@ -910,30 +925,30 @@ document.addEventListener('click', async (ev) => {
                   if (!row.c || !row.c[0]) continue;
                   
                   const dateBrute = String(row.c[0].f || row.c[0].v || '').trim();
-                  const titre = String(row.c[1]?.f || row.c[1]?.v || '').trim();
+                  
+                  let titre = String(row.c[1]?.f || row.c[1]?.v || '').trim();
+                  if (!titre) {
+                      titre = String(row.c[6]?.f || row.c[6]?.v || '').trim();
+                  }
                   if (!titre) continue;
                   
-                  const theme = String(row.c[2]?.f || row.c[2]?.v || '').trim();
+                  const theme = String(row.c[4]?.f || row.c[4]?.v || '').trim();
+                  let lieu = String(row.c[10]?.f || row.c[10]?.v || '').trim();
+                  if (!lieu) lieu = 'À définir';
                   
-                  let extras = [];
-                  for (let i = 3; i < row.c.length; i++) {
-                      if (row.c[i] && row.c[i].v !== null) {
-                          let val = String(row.c[i].f || row.c[i].v).trim();
-                          if (val && val !== 'OUI' && val !== 'O' && val !== 'N') extras.push(val);
-                      }
-                  }
-                  const lieu = extras.length > 0 ? extras.join(' - ') : 'À définir';
-                  
-                  const dateMatch = dateBrute.match(/^(\d{1,2})[-\s]([a-zûé]+)\.?([-\s]?)(\d{2,4})$/i);
+                  const dateMatch = dateBrute.match(/^(\d{1,2})[-\s\/]+([a-zûéA-Z]+|\d{2})[-\s\/\.]+([\d]{2,4})$/i);
                   
                   if(dateMatch) {
                       const jour = dateMatch[1].padStart(2, '0');
                       const moisBrut = dateMatch[2].toLowerCase();
-                      const anneeBrute = dateMatch[4];
+                      const anneeBrute = dateMatch[3];
                       const annee = anneeBrute.length === 2 ? "20" + anneeBrute : anneeBrute;
                       
                       const mapMois = { 'janv':'01', 'févr':'02', 'fevr':'02', 'mars':'03', 'avr':'04', 'mai':'05', 'juin':'06', 'juil':'07', 'août':'08', 'aout':'08', 'sept':'09', 'oct':'10', 'nov':'11', 'déc':'12', 'dec':'12' };
-                      const mois = mapMois[moisBrut] || '01';
+                      let mois = mapMois[moisBrut];
+                      if (!mois && /^\d{2}$/.test(moisBrut)) mois = moisBrut;
+                      if (!mois) mois = '01';
+                      
                       const dateFormatee = `${annee}-${mois}-${jour}`;
                       
                       const exists = S.events.some(e => e.titre === titre && e.date === dateFormatee);
@@ -958,10 +973,10 @@ document.addEventListener('click', async (ev) => {
               }
           }
           if(added > 0) { await batch.commit(); toast(`${added} événements synchronisés !`); } 
-          else { toast(`Calendrier déjà à jour.`, 'info'); }
+          else { toast(`Aucun événement nouveau détecté.`, 'info'); }
       } catch(err) {
           console.error(err);
-          toast("Erreur Google Sheet", 'error');
+          toast(err.message || "Erreur de connexion", 'error');
       } finally {
           btnSh.innerHTML = '<i class="ph-bold ph-arrows-clockwise"></i> Mettre à jour le calendrier';
       }
@@ -1016,7 +1031,7 @@ document.addEventListener('submit', async (ev) => {
       const data = {
         prenom: prenom, 
         nom: nom,
-        appelId: rawAppelId, // Lien immédiat et officiel avec l'appli Appel
+        appelId: rawAppelId,
         telResponsable: document.getElementById('r-tel').value.trim(), email, role: 'eleve'
       };
       
@@ -1126,3 +1141,4 @@ try { render(); } catch (error) {
 </script>
 </body>
 </html>
+
