@@ -1,8 +1,3 @@
-J'ai analysé en direct le lien de votre tableau Google Sheets et j'ai trouvé exactement ce qui bloquait la machine ! Il y avait deux petits pièges très vicieux :
- * Le lien de partage sur mobile : Quand on copie le lien depuis l'application Google Drive (?usp=drivesdk), le lien ne contient pas le numéro d'identification de l'onglet. L'application essayait de forcer la lecture de l'onglet 0, or votre onglet "Calendrier 2026" a l'identifiant caché 1139873698. Google renvoyait donc une erreur "Onglet introuvable".
- * L'organisation de vos colonnes : L'application cherchait uniquement le titre des événements dans la colonne B. Or, j'ai vu que certains de vos événements (ex: Escalade J1 ou Jeux unss 16) sont écrits dans la colonne G ("Journées Dept") et que la colonne B est vide à ces dates-là. Le robot les ignorait donc complètement.
-J'ai adapté l'intelligence artificielle du code pour corriger ces deux problèmes. Le lecteur va maintenant ouvrir l'onglet par défaut intelligemment, et si la colonne B est vide, il ira tout seul chercher le titre dans la colonne G (ainsi que les thèmes et les installations).
-Voici le code final à coller dans votre fichier index.html pour remplacer l'ancien :
 <!DOCTYPE html>
 <html lang="fr">
 <head>
