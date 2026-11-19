@@ -222,7 +222,7 @@ try {
   if ('Notification' in window && 'serviceWorker' in navigator) {
     messaging = getMessaging(app);
     onMessage(messaging, payload => {
-      const body = payload.notification?.body || 'Nouveau Flash Info !';
+      const body = payload.notification?.body || 'Nouvelle information !';
       toast('📢 ' + body, 'info');
     });
   }
@@ -237,6 +237,7 @@ const C_USERS = collection(db, 'as_users');
 const C_LICENCIES = collection(db, 'as_licencies');
 const C_ATTENDANCE = collection(db, 'as_attendance');
 const C_TOKENS = collection(db, 'as_tokens');
+const C_ALERTS = collection(db, 'as_alerts');
 const DOC_SETTINGS = doc(db, 'as_settings', 'main');
 
 const DAY_LABELS = { 1:'Lundi', 2:'Mardi', 4:'Jeudi', 5:'Vendredi' };
@@ -272,25 +273,35 @@ const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');
 const $head = document.getElementById('header-actions');
 
-/* --- NOTIFICATIONS PUSH --- */
+/* --- NOTIFICATIONS PUSH & LIAISON LICENCIÉ --- */
+async function syncPushToken(silent = false) {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !messaging || !S.user) return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    if (token) {
+      await setDoc(doc(C_TOKENS, token), {
+        token,
+        uid: S.user.uid,
+        licencieId: S.profile?.licencieId || '',
+        updatedAt: Date.now()
+      }, { merge: true });
+      if (!silent) toast('🔔 Notifications activées !');
+    }
+  } catch (err) {
+    if (!silent) toast('Impossible d’activer les notifications.', 'error');
+  }
+}
+
 window.enableNotifications = async () => {
   if (!('Notification' in window) || !('serviceWorker' in navigator) || !messaging) {
     return toast('Notifications non supportées (ajoute l’appli à l’écran d’accueil sur iPhone).', 'error');
   }
-  try {
-    const perm = await Notification.requestPermission();
-    if (perm !== 'granted') return toast('Autorisation refusée.', 'error');
-    const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-    if (token && S.user) {
-      await setDoc(doc(C_TOKENS, token), { token, uid: S.user.uid, updatedAt: Date.now() });
-      toast('🔔 Notifications activées !');
-      render();
-    }
-  } catch (err) {
-    console.error(err);
-    toast('Impossible d’activer les notifications.', 'error');
-  }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') return toast('Autorisation refusée.', 'error');
+  await syncPushToken(false);
+  render();
 };
 
 function notifBannerHTML() {
@@ -420,6 +431,9 @@ onAuthStateChanged(auth, async user => {
   }
   S.view = S.isAdmin ? 'admin' : 'student';
 
+  // Met à jour silencieusement le token push avec le licencieId si déjà autorisé
+  syncPushToken(true);
+
   S.unsubs.push(onSnapshot(C_EVENTS, s => { S.events = s.docs.map(d => ({ id:d.id, ...d.data() })); render(); }));
   S.unsubs.push(onSnapshot(C_INSCRIPT, s => { S.inscriptions = s.docs.map(d => ({ id:d.id, ...d.data() })); render(); }));
   S.unsubs.push(onSnapshot(C_ATTENDANCE, s => { S.attendance = s.docs.map(d => ({ id:d.id, ...d.data() })); render(); }));
@@ -541,6 +555,30 @@ window.addGuestStudent = async () => {
   document.getElementById('guest-last').value = '';
   document.getElementById('guest-first').value = '';
   toast(`${f} ${l.toUpperCase()} ajouté(e) présent(e) !`);
+};
+
+/* --- ENVOI NOTIFICATION CIBLÉE AUX PRÉSENTS EN COMPÉTITION --- */
+window.sendCompAlert = async (presetMsg = '') => {
+  const evt = S.events.find(e => e.id === S.attEventId);
+  const sess = currentAttSession();
+  const presentIds = (sess?.presentIds || []).filter(id => !id.startsWith('guest_'));
+  if (!evt || !presentIds.length) return toast('Aucun licencié présent à prévenir.', 'error');
+
+  const input = document.getElementById('comp-alert-msg');
+  const msg = (presetMsg || input?.value || '').trim();
+  if (!msg) return toast('Saisissez un message.', 'error');
+
+  if (!confirm(`Envoyer cette alerte uniquement aux ${presentIds.length} présent(s) ?\n\n"${msg}"`)) return;
+
+  await addDoc(C_ALERTS, {
+    title: `🚌 ${evt.titre}`,
+    body: msg,
+    targetLicencieIds: presentIds,
+    eventId: evt.id,
+    createdAt: Date.now()
+  });
+  if (input) input.value = '';
+  toast(`🔔 Alerte envoyée aux ${presentIds.length} présent(s) !`);
 };
 
 window.exportCompPDF = () => {
@@ -675,6 +713,19 @@ function renderAppelView() {
         <button class="btn btn-orange" onclick="exportCompPDF()"><i class="ph-bold ph-file-pdf"></i> Exporter PDF des présents</button>
       `}
     </div>
+
+    ${S.attType === 'competition' && S.attEventId ? `
+      <div class="card" style="background:#fef3c7;border-color:#f59e0b;">
+        <strong style="display:block;font-size:13px;color:#78350f;margin-bottom:8px;">🔔 Alerte ciblée aux présents (${totalPresents})</strong>
+        <div class="grid2" style="margin-bottom:8px;">
+          <button class="btn" style="background:#fff;color:#92400e;padding:10px;font-size:12px;" onclick="sendCompAlert('Le bus aura environ 15 min de retard au retour.')">🚌 +15 min retard</button>
+          <button class="btn" style="background:#fff;color:#92400e;padding:10px;font-size:12px;" onclick="sendCompAlert('Le bus aura environ 30 min de retard au retour.')">🚌 +30 min retard</button>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input class="input" style="background:#fff;" id="comp-alert-msg" placeholder="Autre message aux présents...">
+          <button class="btn btn-primary" style="width:auto;padding:0 16px;" onclick="sendCompAlert()">Envoyer</button>
+        </div>
+      </div>` : ''}
 
     <div class="switch-tabs three">
       <button class="${S.attStatus==='all'?'active':''}" onclick="S.attStatus='all';render()">Tous (${totalAll})</button>
