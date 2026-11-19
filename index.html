@@ -1,125 +1,1132 @@
-if (ev.target.closest('#btn-import-sheet')) {
-    const btnSh = ev.target.closest('#btn-import-sheet');
-    const url = document.getElementById('g-sheet-url').value.trim();
-    if (!url) return toast('Lien invalide', 'error');
-    localStorage.setItem('as_sheet_url', url);
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title id="html-title">AS Claudie Haigneré - Rouillac</title>
 
-    const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-    const gidMatch = url.match(/gid=([0-9]+)/);
-    if (!match) return toast('Format de lien Google Sheet non reconnu.', 'error');
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AS Appel">
+<meta name="application-name" content="AS Appel">
+<meta name="theme-color" content="#1d4ed8">
 
-    const sheetParam = gidMatch
-        ? `&gid=${gidMatch[1]}`
-        : `&sheet=${encodeURIComponent('Calendrier 2026')}`;
-    const apiUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:json${sheetParam}`;
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231d4ed8'/><text x='50%' y='68%' font-size='60' text-anchor='middle'>🏆</text></svg>">
 
-    btnSh.innerHTML = '<span class="spin"></span>';
-    try {
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error("Fichier inaccessible.");
-        const text = await res.text();
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22AS%20Appel%20Rouillac%22%2C%22short_name%22%3A%22AS%20Appel%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f7fb%22%2C%22theme_color%22%3A%22%231d4ed8%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0 0 100 100'%3E%3Crect%20width%3D'100'%20height%3D'100'%20rx%3D'20'%20fill%3D'%231d4ed8'%2F%3E%3Ctext%20x%3D'50%25'%20y%3D'68%25'%20font-size%3D'60'%20text-anchor%3D'middle'%3E%F0%9F%8F%86%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22192x192 512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
 
-        const startIdx = text.indexOf('{');
-        const endIdx = text.lastIndexOf('}');
-        if (startIdx === -1 || endIdx === -1) {
-            throw new Error("Lien non public ou bloqué par Google.");
-        }
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-        const data = JSON.parse(text.substring(startIdx, endIdx + 1));
-        if (data.status === 'error') {
-            throw new Error("Onglet 'Calendrier 2026' introuvable.");
-        }
-
-        const getVal = (row, idx) => String(row.c?.[idx]?.f || row.c?.[idx]?.v || '').trim();
-
-        const parseDateCell = (cell) => {
-            if (!cell) return '';
-            const rawV = String(cell.v || '');
-            const gvizDate = rawV.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})\)$/);
-            if (gvizDate) {
-                const annee = gvizDate[1];
-                const mois = String(parseInt(gvizDate[2], 10) + 1).padStart(2, '0');
-                const jour = String(parseInt(gvizDate[3], 10)).padStart(2, '0');
-                return `${annee}-${mois}-${jour}`;
-            }
-            const dateBrute = String(cell.f || cell.v || '').trim();
-            const dateMatch = dateBrute.match(/(\d{1,2})[-\s\/]+([a-zûéèêàç]+|\d{1,2})\.?[-\s\/]+(\d{2,4})/i);
-            if (dateMatch) {
-                const jour = dateMatch[1].padStart(2, '0');
-                const moisBrut = dateMatch[2].toLowerCase().slice(0, 4);
-                const annee = dateMatch[3].length === 2 ? '20' + dateMatch[3] : dateMatch[3];
-                const mapMois = {
-                    'janv':'01','févr':'02','fevr':'02','mars':'03','avr':'04','avri':'04',
-                    'mai':'05','juin':'06','juil':'07','août':'08','aout':'08',
-                    'sept':'09','oct':'10','octo':'10','nov':'11','nove':'11','déc':'12','dec':'12'
-                };
-                const mois = mapMois[moisBrut] || (/^\d{1,2}$/.test(dateMatch[2]) ? dateMatch[2].padStart(2, '0') : '');
-                if (mois) return `${annee}-${mois}-${jour}`;
-            }
-            return '';
-        };
-
-        const batch = writeBatch(db);
-        let added = 0;
-        let alreadyPresent = 0;
-
-        if (data.table && data.table.rows) {
-            for (const row of data.table.rows) {
-                if (!row.c || !row.c[0]) continue;
-
-                const dateFormatee = parseDateCell(row.c[0]);
-                if (!dateFormatee) continue; // Ignore les lignes d'en-tête et "Vacances"
-
-                const actDistrict = getVal(row, 1); // Colonne B
-                const actDept = getVal(row, 6);     // Colonne G
-                const theme = getVal(row, 4);       // Colonne E
-                const formule = getVal(row, 9);     // Colonne J
-                const lieu = getVal(row, 10) || 'À définir'; // Colonne K
-
-                const descParts = [theme, formule].filter(Boolean);
-                const description = descParts.join(' · ');
-
-                const titresDuJour = [];
-                if (actDistrict) titresDuJour.push(actDistrict);
-                if (actDept) titresDuJour.push(actDept);
-
-                for (const titre of titresDuJour) {
-                    const exists = S.events.some(e => e.titre === titre && e.date === dateFormatee);
-                    if (exists) {
-                        alreadyPresent++;
-                        continue;
-                    }
-                    const newDoc = doc(col('evenements'));
-                    batch.set(newDoc, {
-                        titre,
-                        date: dateFormatee,
-                        heure: '',
-                        heureFin: '',
-                        lieu,
-                        lieuRetour: '',
-                        description,
-                        places: 0,
-                        inscriptionsClosed: false,
-                        isPast: false,
-                        createdAt: Date.now()
-                    });
-                    added++;
-                }
-            }
-        }
-
-        if (added > 0) {
-            await batch.commit();
-            toast(`${added} événement(s) synchronisé(s) !`);
-        } else if (alreadyPresent > 0) {
-            toast(`Calendrier déjà à jour (${alreadyPresent} événements déjà présents).`, 'info');
-        } else {
-            toast(`Aucune date reconnue dans l'onglet Calendrier 2026.`, 'error');
-        }
-    } catch (err) {
-        console.error(err);
-        toast(err.message || "Erreur de connexion Google Sheet", 'error');
-    } finally {
-        btnSh.innerHTML = '<i class="ph-bold ph-arrows-clockwise"></i> Mettre à jour le calendrier';
-    }
+<style>
+:root {
+  --bg: #f4f7fb; --card: #ffffff; --text: #172033; --muted: #718096;
+  --primary: #2563eb; --primary-dark: #1d4ed8; --green: #16a34a;
+  --red: #ef4444; --border: #e5e7eb; --radius: 18px;
 }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 35px; }
+button { cursor: pointer; border: none; font-family: inherit; }
+input, select { font-family: inherit; width: 100%; border-radius: 11px; border: 1px solid var(--border); padding: 9px 12px; font-size: 15px; outline: none; background: #fff; }
+
+/* HEADER */
+.app-header { background: linear-gradient(135deg, #1d4ed8, #7c3aed, #ec4899); color: white; padding: 16px 14px 18px; box-shadow: 0 5px 20px rgba(37,99,235,.25); }
+.header-inner { max-width: 1100px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.header-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo { width: 50px; height: 50px; border-radius: 15px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+.header-title h1 { font-size: 19px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-title p { font-size: 11px; opacity: .9; font-weight: bold; }
+.header-actions { display: flex; align-items: center; gap: 6px; }
+.cloud-badge { font-size: 11px; font-weight: bold; padding: 5px 9px; border-radius: 8px; background: rgba(255,255,255,.2); color: white; border: 1px solid rgba(255,255,255,.3); cursor: pointer; }
+.cloud-badge.online { background: rgba(34,197,94,.4); border-color: rgba(34,197,94,.7); }
+.cloud-badge.syncing { background: rgba(234,179,8,.4); }
+.cloud-badge.error { background: rgba(239,68,68,.4); }
+.header-btn { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.4); color: white; padding: 6px 10px; border-radius: 10px; font-size: 12px; font-weight: bold; }
+
+/* BANDEAU PREMIÈRE CONNEXION */
+.first-time-install-card {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: white; border-radius: 16px; padding: 14px 16px; margin-bottom: 14px;
+  box-shadow: 0 8px 20px rgba(37,99,235,.25); position: relative;
+}
+.install-card-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.install-card-title { font-size: 15px; font-weight: 900; margin-bottom: 3px; }
+.install-card-text { font-size: 12px; opacity: .95; line-height: 1.3; }
+.install-card-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.btn-install-now {
+  background: white; color: var(--primary); padding: 8px 14px; border-radius: 10px;
+  font-weight: 900; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,.1);
+}
+.btn-install-dismiss {
+  background: rgba(255,255,255,.2); color: white; border-radius: 50%;
+  width: 28px; height: 28px; font-size: 14px; font-weight: bold; display: flex;
+  align-items: center; justify-content: center;
+}
+
+/* NAVIGATION */
+.main-nav-wrapper { position: sticky; top: 0; z-index: 1000; background: white; border-bottom: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,.08); }
+.main-nav { max-width: 1100px; margin: auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 6px; }
+.main-nav-button { min-height: 58px; border-radius: 12px; background: #f8fafc; color: #475569; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; font-size: 11px; font-weight: bold; }
+.main-nav-button span { font-size: 19px; }
+.main-nav-button.active { background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; }
+
+/* MAIN & CARDS */
+main { max-width: 1100px; margin: auto; padding: 18px 14px; }
+.page { display: none; }
+.page.active { display: block; }
+.card { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(0,0,0,.04); }
+.card h3 { margin-bottom: 12px; font-size: 16px; }
+
+/* STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.stat-card { background: white; border-radius: 14px; padding: 12px 8px; text-align: center; border: 1px solid var(--border); }
+.stat-card span { display: block; font-size: 23px; font-weight: 900; }
+.stat-card small { font-size: 11px; color: var(--muted); }
+
+/* APPEL */
+.toolbar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; font-weight: bold; color: var(--muted); margin-bottom: 4px; }
+.save-buttons-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.save-button { min-height: 56px; border-radius: 13px; background: linear-gradient(135deg,#16a34a,#22c55e); color: white; font-size: 16px; font-weight: 900; }
+.pdf-button { min-height: 56px; border-radius: 13px; background: linear-gradient(135deg,#dc2626,#ef4444); color: white; font-size: 16px; font-weight: 900; }
+.action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.sec-btn { min-height: 44px; border-radius: 11px; background: #e2e8f0; color: #334155; font-weight: bold; font-size: 13px; }
+.sec-btn.danger { background: #fee2e2; color: #b91c1c; }
+
+.status-bar { display: flex; justify-content: space-between; align-items: center; background: #eff6ff; padding: 11px 14px; border-radius: 12px; margin-bottom: 12px; font-weight: bold; }
+.day-hint-badge { font-size: 12px; font-weight: bold; color: var(--primary); background: #dbeafe; padding: 4px 8px; border-radius: 8px; margin-top: 4px; display: inline-block; }
+.student-list { display: flex; flex-direction: column; gap: 8px; }
+.student-row { background: white; border: 1px solid var(--border); border-radius: 13px; padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; }
+.st-info strong { display: block; font-size: 15px; }
+.st-info small { color: var(--muted); font-size: 12px; }
+.st-avatar {
+  width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; flex-shrink: 0;
+}
+.p-btn { width: 54px; height: 48px; border-radius: 11px; background: #e2e8f0; font-size: 19px; font-weight: bold; color: #64748b; }
+.p-btn.present { background: #16a34a; color: white; }
+
+/* MODALS */
+.modal-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(15,23,42,.7); display: none; align-items: center; justify-content: center; padding: 12px; }
+.modal-overlay.show { display: flex; }
+.modal { width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; background: white; border-radius: 20px; padding: 18px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.close-btn { width: 34px; height: 34px; border-radius: 50%; background: #fee2e2; color: #b91c1c; font-size: 18px; font-weight: bold; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: #172033; color: white; padding: 11px 18px; border-radius: 12px; font-weight: bold; font-size: 13px; transition: .25s; z-index: 3000; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 650px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .save-buttons-row { grid-template-columns: 1fr; }
+  .install-card-inner { flex-direction: column; align-items: flex-start; }
+  .install-card-actions { width: 100%; justify-content: space-between; margin-top: 6px; }
+}
+</style>
+</head>
+
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-brand">
+      <div class="logo">🏆</div>
+      <div class="header-title">
+        <h1 id="app-school-name">AS CLAUDIE HAIGNERÉ</h1>
+        <p id="app-school-sub">ROUILLAC • BOUGE • PARTICIPE</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span id="cloud-badge" class="cloud-badge" onclick="showCloudDiagnostic()">☁️ Connexion...</span>
+      <button class="header-btn" type="button" onclick="openSchoolsModal()">🏫 Établissement</button>
+    </div>
+  </div>
+</header>
+
+<div class="main-nav-wrapper">
+  <nav class="main-nav">
+    <button id="nav-home" class="main-nav-button active" type="button" onclick="showPage('home')">
+      <span>🏠</span>Accueil
+    </button>
+    <button id="nav-appel" class="main-nav-button" type="button" onclick="showPage('appel')">
+      <span>📋</span>Appel
+    </button>
+    <button id="nav-bilan" class="main-nav-button" type="button" onclick="showPage('bilan')">
+      <span>📊</span>Bilan
+    </button>
+    <button class="main-nav-button" type="button" onclick="openRosterModal()">
+      <span>👥</span>Élèves
+    </button>
+    <button id="nav-settings" class="main-nav-button" type="button" onclick="showPage('settings')">
+      <span>⚙️</span>Réglages
+    </button>
+  </nav>
+</div>
+
+<main>
+
+<!-- BANDEAU PREMIÈRE FOIS (VISIT INITIALE) -->
+<div id="first-visit-banner" class="first-time-install-card" style="display:none;">
+  <div class="install-card-inner">
+    <div>
+      <div class="install-card-title">📲 Installer l'application ?</div>
+      <div class="install-card-text">Ajoutez un raccourci plein écran sur votre appareil pour un accès direct.</div>
+    </div>
+    <div class="install-card-actions">
+      <button class="btn-install-now" type="button" onclick="handleInstallClick()">Installer</button>
+      <button class="btn-install-dismiss" type="button" onclick="dismissInstallBanner()" title="Ne plus afficher">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE ACCUEIL -->
+<section id="page-home" class="page active">
+  <div class="stats-grid">
+    <div class="stat-card"><span id="stat-students">0</span><small>Élèves</small></div>
+    <div class="stat-card"><span id="stat-sessions">0</span><small>Séances</small></div>
+    <div class="stat-card"><span id="stat-presences">0</span><small>Présences</small></div>
+    <div class="stat-card"><span id="stat-rate">0%</span><small>Assiduité</small></div>
+  </div>
+
+  <div class="card">
+    <h3>🏃 Activités programmées</h3>
+    <div id="home-activities" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>🏅 Top Élèves Assidus</h3>
+    <div id="top-students"></div>
+  </div>
+</section>
+
+<!-- PAGE APPEL -->
+<section id="page-appel" class="page">
+  <div class="card">
+    <div class="toolbar-grid">
+      <div class="field">
+        <label for="appel-date">Date</label>
+        <input id="appel-date" type="date" onchange="onDateChanged()">
+        <span id="day-sync-badge" class="day-hint-badge" style="display:none;"></span>
+      </div>
+      <div class="field">
+        <label for="appel-group">Groupe / Classe</label>
+        <select id="appel-group" onchange="renderAppel()"></select>
+      </div>
+      <div class="field">
+        <label for="appel-category">Catégorie UNSS</label>
+        <select id="appel-category" onchange="renderAppel()">
+          <option value="">Toutes catégories</option>
+          <option value="B">Benjamins</option>
+          <option value="M">Minimes</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="appel-activity">Activité</label>
+        <select id="appel-activity" onchange="renderAppel()"></select>
+      </div>
+    </div>
+
+    <div class="save-buttons-row">
+      <button class="save-button" type="button" onclick="saveSession()">💾 SAUVEGARDER L'APPEL</button>
+      <button class="pdf-button" type="button" onclick="exportPresentPDF()">📄 EXPORTER PDF PRÉSENTS</button>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="sec-btn" type="button" onclick="setAllPresent()">✅ Tous présents</button>
+    <button class="sec-btn danger" type="button" onclick="clearCurrentSession()">❌ Tout effacer</button>
+  </div>
+
+  <div class="status-bar">
+    <span>Présents</span>
+    <span id="presence-counter">0 / 0</span>
+  </div>
+
+  <div id="students-list" class="student-list"></div>
+</section>
+
+<!-- PAGE BILAN -->
+<section id="page-bilan" class="page">
+  <div class="card">
+    <div class="toolbar-grid" style="grid-template-columns: 1fr 1fr;">
+      <div class="field">
+        <label for="bilan-group">Filtrer par classe</label>
+        <select id="bilan-group" onchange="renderBilan()"></select>
+      </div>
+      <div class="field">
+        <label for="bilan-search">Rechercher</label>
+        <input id="bilan-search" type="search" placeholder="Nom ou prénom..." oninput="renderBilan()">
+      </div>
+    </div>
+  </div>
+  <div id="bilan-list"></div>
+</section>
+
+<!-- PAGE RÉGLAGES -->
+<section id="page-settings" class="page">
+  <div class="card">
+    <h3>🏫 Identification & Sécurité</h3>
+    <div class="field" style="margin-bottom:10px;">
+      <label>Nom de l'AS</label>
+      <input id="set-name" type="text" placeholder="Ex: AS Claudie Haigneré">
+    </div>
+    <div class="field" style="margin-bottom:10px;">
+      <label>Ville</label>
+      <input id="set-city" type="text" placeholder="Ex: Rouillac">
+    </div>
+    <div class="field" style="margin-bottom:10px;">
+      <label>Code secret d'accès</label>
+      <input id="set-code" type="password" placeholder="Code secret de l'AS">
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📅 Planning hebdomadaire des créneaux</h3>
+    <div id="schedule-settings-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button class="save-button" style="width:100%;margin-top:12px;" type="button" onclick="saveCurrentSchoolSettings()">💾 ENREGISTRER LES RÉGLAGES</button>
+  </div>
+
+  <div class="card">
+    <h3>☁️ Synchronisation Firebase Cloud</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="sec-btn" style="flex:1;min-height:48px;" type="button" onclick="forceSyncFromCloud()">🔄 Télécharger depuis le Cloud</button>
+      <button class="sec-btn" style="flex:1;min-height:48px;" type="button" onclick="forceUpload()">⬆️ Envoyer vers le Cloud</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- MODAL ÉLÈVES -->
+<div id="roster-modal" class="modal-overlay" onclick="outsideModal(event, 'roster-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>👥 Gestion des élèves (<span id="roster-total-count">0</span>)</h3>
+      <button class="close-btn" type="button" onclick="closeModal('roster-modal')">×</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 80px auto;gap:6px;margin-bottom:12px;">
+      <input id="new-lastname" type="text" placeholder="Nom">
+      <input id="new-firstname" type="text" placeholder="Prénom">
+      <input id="new-class" type="text" placeholder="Classe">
+      <button style="background:#16a34a;color:#fff;padding:0 12px;border-radius:10px;font-weight:bold;" type="button" onclick="addStudent()">+</button>
+    </div>
+
+    <div id="roster-list" style="display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow-y:auto;"></div>
+
+    <div style="margin-top:14px;padding:12px;border:2px dashed #cbd5e1;border-radius:12px;text-align:center;">
+      <label style="cursor:pointer;font-weight:bold;color:var(--primary);">
+        📥 Importer fichier CSV (Ajout des nouveaux uniquement)
+        <input type="file" id="csv-file" accept=".csv,text/csv" style="display:none;" onchange="importCSV(event)">
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ÉTABLISSEMENTS -->
+<div id="schools-modal" class="modal-overlay" onclick="outsideModal(event, 'schools-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🏫 Changer d'établissement</h3>
+      <button class="close-btn" type="button" onclick="closeModal('schools-modal')">×</button>
+    </div>
+    <div id="schools-list-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:15px;"></div>
+    <div style="border-top:1px solid var(--border);padding-top:12px;">
+      <h4 style="margin-bottom:8px;">➕ Nouveau profil</h4>
+      <input id="new-school-name" type="text" placeholder="Nom de l'AS" style="margin-bottom:6px;">
+      <input id="new-school-city" type="text" placeholder="Ville" style="margin-bottom:6px;">
+      <input id="new-school-code" type="password" placeholder="Code secret" style="margin-bottom:10px;">
+      <button class="save-button" style="width:100%;min-height:44px;" type="button" onclick="createNewSchool()">Créer et ouvrir</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* =========================================================
+   GESTION PROPOSITION INSTALLATION (1ÈRE FOIS SEULEMENT)
+========================================================= */
+let pwaPromptEvent = null;
+const INSTALL_KEY = "as_pwa_prompt_handled_v1";
+
+function checkFirstVisitInstall() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  const alreadyAnswered = localStorage.getItem(INSTALL_KEY);
+
+  if (!isStandalone && !alreadyAnswered) {
+    const banner = document.getElementById("first-visit-banner");
+    if (banner) banner.style.display = "block";
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    pwaPromptEvent = e;
+  });
+}
+
+function handleInstallClick() {
+  localStorage.setItem(INSTALL_KEY, "true");
+  dismissInstallBanner();
+
+  if (pwaPromptEvent) {
+    pwaPromptEvent.prompt();
+    pwaPromptEvent.userChoice.then(() => { pwaPromptEvent = null; });
+  } else {
+    alert("Pour finaliser l'installation sur votre écran d'accueil :\n\n1. Touchez les 3 points verticaux en haut à droite de Chrome.\n2. Choisissez 'Ajouter à l'écran d'accueil' ou 'Créer un raccourci'.");
+  }
+}
+
+function dismissInstallBanner() {
+  localStorage.setItem(INSTALL_KEY, "true");
+  const banner = document.getElementById("first-visit-banner");
+  if (banner) banner.style.display = "none";
+}
+
+/* =========================================================
+   FIREBASE FIRESTORE SYNC
+========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCmV2E6dhnXPDNjjMkVQHI8IH2nXKQByvc",
+  authDomain: "appel-as.firebaseapp.com",
+  projectId: "appel-as",
+  storageBucket: "appel-as.firebasestorage.app",
+  messagingSenderId: "943879688117",
+  appId: "1:943879688117:web:0b4b35465d40cac4ff13fc"
+};
+
+const FIRESTORE_COLLECTION = "appelas";
+let db = null;
+
+try {
+  if (typeof firebase !== "undefined") {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  }
+} catch (e) {
+  console.warn("Init Firebase:", e);
+}
+
+function updateCloudBadge(status, text) {
+  const badge = document.getElementById("cloud-badge");
+  if (!badge) return;
+  badge.className = "cloud-badge " + status;
+  badge.textContent = text || (status === "online" ? "☁️ Synchronisé" : status === "syncing" ? "⏳ Envoi..." : "🟠 Hors-ligne");
+}
+
+/* =========================================================
+   DONNÉES & PLANNING
+========================================================= */
+const DAYS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const DAY_LABELS = { lundi:"Lundi", mardi:"Mardi", mercredi:"Mercredi", jeudi:"Jeudi", vendredi:"Vendredi", samedi:"Samedi" };
+
+const DEFAULT_SCHEDULE = {
+  lundi: { enabled: true, name: "Futsal", icon: "⚽", color: "#dbeafe" },
+  mardi: { enabled: true, name: "Sports Collectifs", icon: "🏀", color: "#dcfce7" },
+  mercredi: { enabled: true, name: "Compétition", icon: "🏆", color: "#fef3c7" },
+  jeudi: { enabled: true, name: "Activités Artistiques", icon: "🤸", color: "#fce7f3" },
+  vendredi: { enabled: true, name: "Badminton", icon: "🏸", color: "#ede9fe" },
+  samedi: { enabled: false, name: "Plein Air", icon: "🌲", color: "#e0f2fe" }
+};
+
+let schoolsDB = {};
+let currentSchoolId = "rouillac";
+let currentSchool = null;
+let roster = [];
+let sessions = [];
+let ACTIVITIES = {};
+
+function initApp() {
+  checkFirstVisitInstall();
+
+  try {
+    const raw = localStorage.getItem("as_schools_db_master");
+    if (raw) schoolsDB = JSON.parse(raw);
+  } catch (e) { schoolsDB = {}; }
+
+  if (!schoolsDB["rouillac"]) {
+    schoolsDB["rouillac"] = {
+      id: "rouillac",
+      name: "AS CLAUDIE HAIGNERÉ",
+      city: "Rouillac",
+      slogan: "ROUILLAC • BOUGE • PARTICIPE • PROGRESSE",
+      accessCode: "1234",
+      schedule: DEFAULT_SCHEDULE,
+      roster: [],
+      sessions: []
+    };
+    saveLocalOnly();
+  }
+
+  currentSchoolId = localStorage.getItem("as_active_school_id") || "rouillac";
+  if (!schoolsDB[currentSchoolId]) currentSchoolId = Object.keys(schoolsDB)[0];
+  loadSchool(currentSchoolId);
+
+  listenCloud();
+}
+
+function loadSchool(id) {
+  currentSchoolId = id;
+  localStorage.setItem("as_active_school_id", id);
+  currentSchool = schoolsDB[id] || { id: id, name: "AS", roster: [], sessions: [], schedule: DEFAULT_SCHEDULE };
+  roster = Array.isArray(currentSchool.roster) ? currentSchool.roster : [];
+  sessions = Array.isArray(currentSchool.sessions) ? currentSchool.sessions : [];
+
+  ACTIVITIES = {};
+  const sched = currentSchool.schedule || DEFAULT_SCHEDULE;
+  DAYS.forEach(k => {
+    if (sched[k] && sched[k].enabled && sched[k].name) {
+      ACTIVITIES[k] = sched[k];
+    }
+  });
+
+  document.getElementById("app-school-name").textContent = currentSchool.name || "AS";
+  document.getElementById("app-school-sub").textContent = currentSchool.city || "";
+}
+
+function saveLocalOnly() {
+  try {
+    localStorage.setItem("as_schools_db_master", JSON.stringify(schoolsDB));
+  } catch(e){}
+}
+
+function saveCurrentStateToLocal() {
+  try {
+    if (currentSchool) {
+      currentSchool.roster = roster;
+      currentSchool.sessions = sessions;
+      schoolsDB[currentSchoolId] = currentSchool;
+    }
+    localStorage.setItem("as_schools_db_master", JSON.stringify(schoolsDB));
+  } catch(e){}
+}
+
+/* ENVOI CLOUD FIRESTORE */
+function pushToCloud(school) {
+  if (!db || !school) return;
+  const targetId = school.id || currentSchoolId || "rouillac";
+
+  const cleanSchool = JSON.parse(JSON.stringify(school));
+  cleanSchool.id = targetId;
+
+  updateCloudBadge("syncing", "⏳ Envoi...");
+  db.collection(FIRESTORE_COLLECTION).doc(targetId).set(cleanSchool)
+    .then(() => {
+      updateCloudBadge("online", "☁️ Synchronisé");
+      showToast("Données synchronisées sur le Cloud ✅");
+    })
+    .catch(err => {
+      console.error("Erreur Firestore:", err);
+      updateCloudBadge("error", "⚠️ Erreur Cloud");
+      alert("Erreur Firestore : " + err.message);
+    });
+}
+
+function forceUpload() {
+  saveCurrentStateToLocal();
+  if (currentSchool) {
+    pushToCloud(currentSchool);
+  }
+}
+
+/* SYNCHRONISATION EN TEMPS RÉEL SUR LES APPAREILS */
+function listenCloud() {
+  if (!db) { updateCloudBadge("offline", "🟠 Hors-ligne"); return; }
+  try {
+    db.collection(FIRESTORE_COLLECTION).onSnapshot(snapshot => {
+      let updated = false;
+
+      snapshot.forEach(docSnap => {
+        const docId = docSnap.id;
+        const data = docSnap.data();
+        if (data && docId !== "init") {
+          data.id = data.id || docId;
+          schoolsDB[docId] = data;
+          updated = true;
+        }
+      });
+
+      if (updated) {
+        saveLocalOnly();
+        if (schoolsDB[currentSchoolId]) {
+          loadSchool(currentSchoolId);
+          renderHome();
+          renderAppel();
+          renderBilan();
+          renderRoster();
+        }
+      }
+
+      updateCloudBadge("online", "☁️ Synchronisé");
+    }, err => {
+      console.warn("Écoute cloud:", err);
+      updateCloudBadge("offline", "🟠 Hors-ligne");
+    });
+  } catch(e){
+    updateCloudBadge("offline", "🟠 Hors-ligne");
+  }
+}
+
+function forceSyncFromCloud() {
+  if (!db) { showToast("Firebase non disponible"); return; }
+  updateCloudBadge("syncing", "⏳ Chargement...");
+
+  db.collection(FIRESTORE_COLLECTION).get().then(snapshot => {
+    let count = 0;
+    snapshot.forEach(docSnap => {
+      const docId = docSnap.id;
+      const data = docSnap.data();
+      if (data && docId !== "init") {
+        data.id = data.id || docId;
+        schoolsDB[docId] = data;
+        count++;
+      }
+    });
+
+    if (count > 0 && schoolsDB[currentSchoolId]) {
+      saveLocalOnly();
+      loadSchool(currentSchoolId);
+      renderHome();
+      renderAppel();
+      renderBilan();
+      renderRoster();
+      updateCloudBadge("online", "☁️ Synchronisé");
+      showToast("Données chargées depuis le Cloud ! ✅");
+    } else {
+      updateCloudBadge("online", "☁️ Synchronisé");
+      showToast("Données déjà à jour.");
+    }
+  }).catch(err => {
+    alert("Erreur de synchronisation : " + err.message);
+    updateCloudBadge("offline", "🟠 Hors-ligne");
+  });
+}
+
+function showCloudDiagnostic() {
+  const count = roster.length;
+  const msg = `État Cloud :\n• Appareil : ${count} élève(s)\n• AS active : ${currentSchool.name || "AS"}\n\nCliquez sur OK pour forcer le téléchargement depuis le Cloud.`;
+  if (confirm(msg)) {
+    forceSyncFromCloud();
+  }
+}
+
+/* NAVIGATION */
+function showPage(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".main-nav-button").forEach(b => b.classList.remove("active"));
+
+  const target = document.getElementById("page-" + page);
+  const btn = document.getElementById("nav-" + page);
+  if (target) target.classList.add("active");
+  if (btn) btn.classList.add("active");
+
+  if (page === "home") renderHome();
+  if (page === "appel") {
+    if (!document.getElementById("appel-date").value) {
+      document.getElementById("appel-date").value = new Date().toISOString().split("T")[0];
+    }
+    onDateChanged();
+  }
+  if (page === "bilan") renderBilan();
+  if (page === "settings") renderSettings();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* NETTOYAGE STRICT NOM ET LICENCE */
+function cleanName(st) {
+  let nom = String(st.lastname || "").trim();
+  let prenom = String(st.firstname || "").trim();
+  if (/^[0-9]+$/.test(nom)) nom = "";
+  return (nom.toUpperCase() + " " + prenom).trim();
+}
+
+function initials(st) {
+  let nom = String(st.lastname || "").trim();
+  let prenom = String(st.firstname || "").trim();
+  if (/^[0-9]+$/.test(nom)) nom = "";
+  return ((nom ? nom.charAt(0) : "") + (prenom ? prenom.charAt(0) : "")).toUpperCase() || "É";
+}
+
+/* DÉTECTION CATÉGORIE UNSS (BENJAMINS / MINIMES) */
+function getStudentCategory(st) {
+  const rawDate = st.birthdate || st.dateNaissance || "";
+  if (rawDate) {
+    const yearMatch = String(rawDate).match(/(\d{4})/);
+    if (yearMatch) {
+      const birthYear = parseInt(yearMatch[1], 10);
+      const now = new Date();
+      const refYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+      const diff = refYear - birthYear;
+      if (diff <= 12) return "B";
+      if (diff === 13 || diff === 14) return "M";
+      return "A";
+    }
+  }
+  const cl = String(st.class || "").toLowerCase();
+  if (cl.includes("6") || cl.includes("5")) return "B";
+  if (cl.includes("4") || cl.includes("3")) return "M";
+  return "A";
+}
+
+/* SYNCHRO DATE ↔ CRÉNEAUX */
+function onDateChanged() {
+  const dVal = document.getElementById("appel-date").value;
+  const badge = document.getElementById("day-sync-badge");
+  const actSelect = document.getElementById("appel-activity");
+
+  actSelect.innerHTML = "";
+  DAYS.forEach(k => {
+    if (ACTIVITIES[k]) {
+      const opt = document.createElement("option");
+      opt.value = k;
+      opt.textContent = `${ACTIVITIES[k].icon} ${ACTIVITIES[k].name} (${DAY_LABELS[k]})`;
+      actSelect.appendChild(opt);
+    }
+  });
+
+  if (!dVal) return;
+  const dayIdx = new Date(dVal + "T12:00:00").getDay();
+  const map = { 1:"lundi", 2:"mardi", 3:"mercredi", 4:"jeudi", 5:"vendredi", 6:"samedi" };
+  const dKey = map[dayIdx];
+
+  if (dKey && ACTIVITIES[dKey]) {
+    actSelect.value = dKey;
+    badge.textContent = `📅 Créneau du ${DAY_LABELS[dKey]} : ${ACTIVITIES[dKey].name}`;
+    badge.style.display = "inline-block";
+  } else {
+    badge.textContent = `⚠️ Aucun créneau défini pour ce jour`;
+    badge.style.display = "inline-block";
+  }
+  renderAppel();
+}
+
+/* APPEL */
+function renderAppel() {
+  const grpSelect = document.getElementById("appel-group");
+  const catSelect = document.getElementById("appel-category");
+  const listEl = document.getElementById("students-list");
+  const prevGrp = grpSelect.value;
+
+  const classes = Array.from(new Set(roster.map(s => s.class).filter(Boolean))).sort();
+  grpSelect.innerHTML = `<option value="">Toutes les classes</option>`;
+  classes.forEach(c => {
+    grpSelect.innerHTML += `<option value="${c}" ${prevGrp === c ? "selected" : ""}>${c}</option>`;
+  });
+
+  const curGrp = grpSelect.value;
+  const curCat = catSelect ? catSelect.value : "";
+  const curDate = document.getElementById("appel-date").value;
+  const curAct = document.getElementById("appel-activity").value;
+
+  const s = sessions.find(x => x.date === curDate && x.activity === curAct && x.group === curGrp);
+  const presents = s ? s.presenceIds || [] : [];
+
+  let students = [...roster].sort((a,b) => cleanName(a).localeCompare(cleanName(b)));
+  if (curGrp) students = students.filter(x => x.class === curGrp);
+  if (curCat) students = students.filter(x => getStudentCategory(x) === curCat);
+
+  const visiblePresents = students.filter(st => presents.includes(st.id)).length;
+  document.getElementById("presence-counter").textContent = `${visiblePresents} / ${students.length}`;
+
+  if (!students.length) {
+    listEl.innerHTML = `<p style="text-align:center;padding:25px;color:#94a3b8;">Aucun élève trouvé.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = students.map(st => {
+    const isP = presents.includes(st.id);
+    const cat = getStudentCategory(st);
+    const catLabel = cat === "B" ? "Benj." : cat === "M" ? "Min." : "";
+    return `
+      <div class="student-row">
+        <div class="st-info">
+          <strong>${cleanName(st)}</strong>
+          <small>${[st.class, catLabel].filter(Boolean).join(" · ")}</small>
+        </div>
+        <button class="p-btn ${isP ? 'present' : ''}" type="button" onclick="togglePresence('${st.id}')">
+          ${isP ? '✓' : 'P'}
+        </button>
+      </div>
+    `;
+  }).join("");
+}
+
+function togglePresence(id) {
+  const curDate = document.getElementById("appel-date").value;
+  const curAct = document.getElementById("appel-activity").value;
+  const curGrp = document.getElementById("appel-group").value;
+
+  let s = sessions.find(x => x.date === curDate && x.activity === curAct && x.group === curGrp);
+  if (!s) {
+    s = { date: curDate, activity: curAct, group: curGrp, presenceIds: [] };
+    sessions.push(s);
+  }
+
+  const idx = s.presenceIds.indexOf(id);
+  if (idx >= 0) s.presenceIds.splice(idx, 1);
+  else s.presenceIds.push(id);
+
+  saveCurrentStateToLocal();
+  renderAppel();
+}
+
+function setAllPresent() {
+  const curDate = document.getElementById("appel-date").value;
+  const curAct = document.getElementById("appel-activity").value;
+  const curGrp = document.getElementById("appel-group").value;
+  const curCat = document.getElementById("appel-category")?.value || "";
+
+  let s = sessions.find(x => x.date === curDate && x.activity === curAct && x.group === curGrp);
+  if (!s) {
+    s = { date: curDate, activity: curAct, group: curGrp, presenceIds: [] };
+    sessions.push(s);
+  }
+
+  let sts = roster;
+  if (curGrp) sts = sts.filter(x => x.class === curGrp);
+  if (curCat) sts = sts.filter(x => getStudentCategory(x) === curCat);
+
+  const merged = new Set(s.presenceIds || []);
+  sts.forEach(x => merged.add(x.id));
+  s.presenceIds = Array.from(merged);
+
+  saveCurrentStateToLocal();
+  renderAppel();
+}
+
+function clearCurrentSession() {
+  const curDate = document.getElementById("appel-date").value;
+  const curAct = document.getElementById("appel-activity").value;
+  const curGrp = document.getElementById("appel-group").value;
+
+  let s = sessions.find(x => x.date === curDate && x.activity === curAct && x.group === curGrp);
+  if (s) s.presenceIds = [];
+
+  saveCurrentStateToLocal();
+  renderAppel();
+}
+
+function saveSession() {
+  saveCurrentStateToLocal();
+  pushToCloud(currentSchool);
+  renderHome();
+}
+
+/* EXPORT PDF (STRICTEMENT NOM & PRÉNOM) */
+function exportPresentPDF() {
+  const curDate = document.getElementById("appel-date").value;
+  const curAct = document.getElementById("appel-activity").value;
+  const curGrp = document.getElementById("appel-group").value;
+
+  const s = sessions.find(x => x.date === curDate && x.activity === curAct && x.group === curGrp);
+  const pIds = s ? s.presenceIds || [] : [];
+  if (!pIds.length) { showToast("Aucun présent à exporter"); return; }
+
+  const presentSt = roster.filter(x => pIds.includes(x.id)).sort((a,b) => cleanName(a).localeCompare(cleanName(b)));
+
+  if (!window.jspdf) { alert("Module PDF non prêt"); return; }
+  const doc = new window.jspdf.jsPDF();
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(29, 78, 216);
+  doc.text((currentSchool.name || "AS").toUpperCase(), 15, 20);
+
+  doc.setFontSize(12);
+  doc.setTextColor(30, 41, 59);
+  doc.text(`Liste des élèves présents - ${curDate}`, 15, 28);
+  doc.text(`Total : ${presentSt.length}`, 15, 35);
+
+  let y = 45;
+  doc.setFontSize(10);
+  presentSt.forEach((st, i) => {
+    if (y > 275) { doc.addPage(); y = 20; }
+    let nom = String(st.lastname || "").trim();
+    if (/^[0-9]+$/.test(nom)) nom = "";
+    doc.text(`${i+1}. ${nom.toUpperCase()} ${st.firstname || ""}`, 15, y);
+    y += 7;
+  });
+
+  doc.save(`presents_${curDate}.pdf`);
+  showToast("PDF téléchargé 📄");
+}
+
+/* BILAN */
+function renderBilan() {
+  const grp = document.getElementById("bilan-group").value;
+  const search = (document.getElementById("bilan-search").value || "").toLowerCase();
+  const list = document.getElementById("bilan-list");
+
+  let sts = [...roster].sort((a,b) => cleanName(a).localeCompare(cleanName(b)));
+  if (grp) sts = sts.filter(s => s.class === grp);
+  if (search) sts = sts.filter(s => cleanName(s).toLowerCase().includes(search));
+
+  list.innerHTML = sts.map(st => {
+    let count = 0;
+    sessions.forEach(sess => {
+      if ((sess.presenceIds || []).includes(st.id)) count++;
+    });
+    return `
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;">
+        <div><strong>${cleanName(st)}</strong><small style="color:#64748b;">${st.class || ""}</small></div>
+        <div style="background:#dcfce7;color:#15803d;padding:6px 12px;border-radius:10px;font-weight:bold;">${count} présence(s)</div>
+      </div>
+    `;
+  }).join("");
+}
+
+/* ACCUEIL & ÉLÈVES LES PLUS ASSIDUS */
+function getStudentPresenceCount(studentId) {
+  let count = 0;
+  sessions.forEach(s => {
+    if (s.presenceIds && s.presenceIds.includes(studentId)) count++;
+  });
+  return count;
+}
+
+function renderHome() {
+  document.getElementById("stat-students").textContent = roster.length;
+  document.getElementById("stat-sessions").textContent = sessions.length;
+
+  let totalP = 0;
+  sessions.forEach(s => totalP += (s.presenceIds || []).length);
+  document.getElementById("stat-presences").textContent = totalP;
+
+  const totalPossible = sessions.reduce((tot, s) => tot + roster.filter(st => !s.group || st.class === s.group).length, 0);
+  document.getElementById("stat-rate").textContent = (totalPossible > 0 ? Math.round((totalP / totalPossible) * 100) : 0) + "%";
+
+  const actCont = document.getElementById("home-activities");
+  const keys = Object.keys(ACTIVITIES);
+  actCont.innerHTML = keys.map(k => `
+    <div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;">
+      <span style="font-size:20px;">${ACTIVITIES[k].icon}</span>
+      <strong style="display:block;font-size:12px;">${ACTIVITIES[k].name}</strong>
+      <small style="color:var(--muted);">${DAY_LABELS[k]}</small>
+    </div>
+  `).join("");
+
+  const topCont = document.getElementById("top-students");
+  const top = roster
+    .map(st => ({ student: st, count: getStudentPresenceCount(st.id) }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  if (!top.length || top.every(item => item.count === 0)) {
+    topCont.innerHTML = `<p style="text-align:center;padding:15px;color:var(--muted);font-size:13px;">Aucune présence enregistrée pour le moment.</p>`;
+  } else {
+    topCont.innerHTML = top.map((item, index) => `
+      <div class="student-row" style="margin-bottom:7px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="st-avatar" style="background:linear-gradient(135deg, ${index === 0 ? "#f59e0b" : index === 1 ? "#94a3b8" : index === 2 ? "#b45309" : "#2563eb"}, #7c3aed);">
+            ${index + 1}
+          </div>
+          <div class="st-info">
+            <strong>${cleanName(item.student)}</strong>
+            <small>${item.student.class || ""}</small>
+          </div>
+        </div>
+        <div style="background:#dcfce7;color:#15803d;padding:6px 12px;border-radius:10px;font-weight:bold;font-size:13px;">
+          ${item.count} présence${item.count > 1 ? "s" : ""}
+        </div>
+      </div>
+    `).join("");
+  }
+}
+
+/* RÉGLAGES */
+function renderSettings() {
+  document.getElementById("set-name").value = currentSchool.name || "";
+  document.getElementById("set-city").value = currentSchool.city || "";
+  document.getElementById("set-code").value = currentSchool.accessCode || "";
+
+  const cont = document.getElementById("schedule-settings-list");
+  const sched = currentSchool.schedule || DEFAULT_SCHEDULE;
+
+  cont.innerHTML = DAYS.map(k => {
+    const item = sched[k] || { enabled: false, name: "", icon: "⚽" };
+    return `
+      <div style="display:grid;grid-template-columns:30px 85px 1fr;gap:6px;align-items:center;background:#f8fafc;padding:6px 10px;border-radius:10px;">
+        <input type="checkbox" id="sc-${k}" ${item.enabled ? 'checked' : ''}>
+        <strong>${DAY_LABELS[k]}</strong>
+        <input type="text" id="sn-${k}" value="${item.name || ''}" placeholder="Activité">
+      </div>
+    `;
+  }).join("");
+}
+
+function saveCurrentSchoolSettings() {
+  currentSchool.name = document.getElementById("set-name").value.trim() || "AS";
+  currentSchool.city = document.getElementById("set-city").value.trim();
+  currentSchool.accessCode = document.getElementById("set-code").value.trim();
+
+  const sched = {};
+  DAYS.forEach(k => {
+    sched[k] = {
+      enabled: document.getElementById(`sc-${k}`).checked,
+      name: document.getElementById(`sn-${k}`).value.trim(),
+      icon: "🏃"
+    };
+  });
+  currentSchool.schedule = sched;
+
+  saveCurrentStateToLocal();
+  loadSchool(currentSchoolId);
+  pushToCloud(currentSchool);
+  renderHome();
+}
+
+/* ÉLÈVES & IMPORT CSV ANTI-DOUBLONS */
+function openRosterModal() {
+  renderRoster();
+  document.getElementById("roster-modal").classList.add("show");
+}
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+function outsideModal(e, id) { if (e.target.id === id) closeModal(id); }
+
+function renderRoster() {
+  const el = document.getElementById("roster-list");
+  document.getElementById("roster-total-count").textContent = roster.length;
+  el.innerHTML = roster.map(st => `
+    <div style="display:flex;justify-content:space-between;padding:7px;background:#f8fafc;border-radius:8px;">
+      <span><strong>${cleanName(st)}</strong> (${st.class || '-'})</span>
+      <button style="color:#ef4444;font-weight:bold;" type="button" onclick="deleteStudent('${st.id}')">✕</button>
+    </div>
+  `).join("");
+}
+
+function addStudent() {
+  const nom = document.getElementById("new-lastname").value.trim();
+  const prenom = document.getElementById("new-firstname").value.trim();
+  const classe = document.getElementById("new-class").value.trim();
+  if (!nom || !prenom) return;
+
+  const exists = roster.some(s => s.lastname.toLowerCase() === nom.toLowerCase() && s.firstname.toLowerCase() === prenom.toLowerCase());
+  if (exists) {
+    alert("Cet élève est déjà présent dans la liste.");
+    return;
+  }
+
+  const newSt = { id: Date.now().toString(36) + Math.random().toString(36).substr(2,4), lastname: nom, firstname: prenom, class: classe };
+  roster.push(newSt);
+
+  document.getElementById("new-lastname").value = "";
+  document.getElementById("new-firstname").value = "";
+  document.getElementById("new-class").value = "";
+
+  saveCurrentStateToLocal();
+  renderRoster();
+  pushToCloud(currentSchool);
+}
+
+function deleteStudent(id) {
+  roster = roster.filter(s => s.id !== id);
+  saveCurrentStateToLocal();
+  renderRoster();
+  pushToCloud(currentSchool);
+}
+
+function importCSV(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const lines = evt.target.result.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    let addedCount = 0;
+    let existingCount = 0;
+
+    lines.forEach((l, idx) => {
+      let parts = l.split(";").map(p => p.replace(/^"|"$/g, "").trim());
+      if (/^[0-9]{4,}$/.test(parts[0])) parts.shift();
+      if (idx === 0 && (parts[0].toLowerCase().includes("nom") || parts[0].toLowerCase().includes("licence"))) return;
+
+      const nom = parts[0] ? parts[0].trim() : "";
+      const prenom = parts[1] ? parts[1].trim() : "";
+      const classe = parts[2] ? parts[2].trim() : "";
+
+      if (nom && prenom) {
+        const alreadyExists = roster.some(s =>
+          s.lastname.trim().toLowerCase() === nom.toLowerCase() &&
+          s.firstname.trim().toLowerCase() === prenom.toLowerCase()
+        );
+
+        if (!alreadyExists) {
+          roster.push({
+            id: Date.now().toString(36) + Math.random().toString(36).substr(2,4),
+            lastname: nom,
+            firstname: prenom,
+            class: classe
+          });
+          addedCount++;
+        } else {
+          existingCount++;
+        }
+      }
+    });
+
+    saveCurrentStateToLocal();
+    renderRoster();
+    pushToCloud(currentSchool);
+
+    let msg = `${addedCount} nouveau(x) élève(s) ajouté(s) ✅`;
+    if (existingCount > 0) msg += ` (${existingCount} déjà présent(s) ignoré(s))`;
+    showToast(msg);
+    e.target.value = "";
+  };
+  reader.readAsText(f, "UTF-8");
+}
+
+/* ÉTABLISSEMENTS */
+function openSchoolsModal() {
+  const cont = document.getElementById("schools-list-container");
+  cont.innerHTML = Object.values(schoolsDB).map(s => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f8fafc;border-radius:10px;border:1px solid var(--border);">
+      <div><strong>${s.name}</strong><br><small>${s.city || ""}</small></div>
+      <button style="background:var(--primary);color:#fff;padding:6px 12px;border-radius:8px;font-weight:bold;" type="button" onclick="switchSchool('${s.id}')">Ouvrir</button>
+    </div>
+  `).join("");
+  document.getElementById("schools-modal").classList.add("show");
+}
+
+function switchSchool(id) {
+  const s = schoolsDB[id];
+  if (s && s.accessCode) {
+    const code = prompt(`Code secret requis pour ${s.name} :`);
+    if (code !== s.accessCode) { alert("Code incorrect"); return; }
+  }
+  loadSchool(id);
+  closeModal("schools-modal");
+  renderHome();
+  showToast(`Établissement activé : ${currentSchool.name}`);
+}
+
+function createNewSchool() {
+  const name = document.getElementById("new-school-name").value.trim();
+  const city = document.getElementById("new-school-city").value.trim();
+  const code = document.getElementById("new-school-code").value.trim();
+  if (!name) return;
+
+  const id = "sc_" + Date.now().toString(36);
+  schoolsDB[id] = { id, name, city, accessCode: code, schedule: DEFAULT_SCHEDULE, roster: [], sessions: [] };
+  saveCurrentStateToLocal();
+  loadSchool(id);
+  pushToCloud(currentSchool);
+  closeModal("schools-modal");
+  renderHome();
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initApp();
+  renderHome();
+});
+</script>
+</body>
+</html>
