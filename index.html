@@ -393,9 +393,9 @@ onAuthStateChanged(auth, async user => {
   render();
 });
 
-const upcomingEvents = () => S.events.filter(e => e.date >= getToday() && !e.isPast).sort((a,b) => a.date.localeCompare(b.date));
-const pastEvents = () => S.events.filter(e => e.date < getToday() || e.isPast).sort((a,b) => b.date.localeCompare(a.date));
-const galleryEvents = () => pastEvents().filter(e => e.edunuageLink && e.edunuageLink.trim());
+const realEvents = () => S.events.filter(e => !e.isAlbumOnly);
+const upcomingEvents = () => realEvents().filter(e => e.date >= getToday() && !e.isPast).sort((a,b) => a.date.localeCompare(b.date));
+const galleryEvents = () => S.events.filter(e => e.edunuageLink && e.edunuageLink.trim()).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
 
 /* --- PRÉSENCES, BADGES & TOP 10 --- */
 function studentPresenceCount(licId) {
@@ -461,7 +461,7 @@ async function saveAttPatch(patch) {
 
 window.setAttType = t => {
   S.attType = t;
-  if (t === 'competition' && !S.attEventId) S.attEventId = upcomingEvents()[0]?.id || S.events[0]?.id || '';
+  if (t === 'competition' && !S.attEventId) S.attEventId = upcomingEvents()[0]?.id || realEvents()[0]?.id || '';
   render();
 };
 
@@ -574,7 +574,7 @@ function renderAppelView() {
       return pa !== pb ? pa - pb : fullName(a).localeCompare(fullName(b), 'fr');
     });
   } else {
-    const evts = [...S.events].sort((a,b) => a.date.localeCompare(b.date));
+    const evts = [...realEvents()].sort((a,b) => a.date.localeCompare(b.date));
     if (!S.attEventId && evts.length) S.attEventId = upcomingEvents()[0]?.id || evts[0].id;
     regSet = new Set(getEventRegistrations(S.attEventId).map(i => i.userId));
     list = [...activeLicencies()].sort((a,b) => {
@@ -603,6 +603,7 @@ function renderAppelView() {
 
   const totalPresents = list.filter(s => presentSet.has(s.id)).length + guests.filter(g => presentSet.has(g.id)).length;
   const totalAll = list.length + guests.length;
+  const showCallBtn = S.attType === 'competition' && S.attStatus === 'present';
 
   return `
     <div class="admin-banner"><i class="ph-fill ph-clipboard-text" style="font-size:22px;color:var(--as-green-light)"></i>Appel & Présences</div>
@@ -620,7 +621,7 @@ function renderAppelView() {
       ` : `
         <div class="field"><label>Compétition</label>
           <select class="input" onchange="S.attEventId=this.value;render()">
-            ${S.events.sort((a,b)=>a.date.localeCompare(b.date)).map(e => `<option value="${e.id}" ${e.id===S.attEventId?'selected':''}>${esc(fmtDate(e.date))} · ${esc(e.titre)}</option>`).join('') || '<option value="">Aucun événement</option>'}
+            ${realEvents().sort((a,b)=>a.date.localeCompare(b.date)).map(e => `<option value="${e.id}" ${e.id===S.attEventId?'selected':''}>${esc(fmtDate(e.date))} · ${esc(e.titre)}</option>`).join('') || '<option value="">Aucun événement</option>'}
           </select>
         </div>
         <button class="btn btn-orange" onclick="exportCompPDF()"><i class="ph-bold ph-file-pdf"></i> Exporter PDF des présents</button>
@@ -658,8 +659,10 @@ function renderAppelView() {
       const isP = presentSet.has(st.id);
       const cat = getCategory(st);
       const isReg = S.attType === 'competition' && regSet.has(st.id);
+      const u = showCallBtn ? S.users.find(x => x.licencieId === st.id) : null;
+      const tel = u?.telResponsable;
       return `<div class="att-row clickable ${isP?'is-present':''}" onclick="toggleAtt('${st.id}',false)">
-        <div>
+        <div style="flex:1;min-width:0;">
           <strong>${esc(fullName(st))}</strong>
           <div style="font-size:12px;color:var(--muted);font-weight:600;">
             ${esc(st.class||'')}
@@ -667,7 +670,10 @@ function renderAppelView() {
             ${isReg?'<span class="cat-pill REG">Inscrit</span>':''}
           </div>
         </div>
-        <div class="att-pill">${isP?'✓ PRÉSENT':'ABSENT'}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${showCallBtn && tel ? `<a href="tel:${esc(tel)}" onclick="event.stopPropagation()" style="width:38px;height:38px;background:var(--green-status);color:#fff;border-radius:11px;display:grid;place-items:center;text-decoration:none;flex-shrink:0;" title="Appeler le responsable légal"><i class="ph-fill ph-phone" style="font-size:18px;"></i></a>` : ''}
+          <div class="att-pill">${isP?'✓ PRÉSENT':'ABSENT'}</div>
+        </div>
       </div>`;
     }).join('') || (!filteredGuests.length ? '<div class="empty">Aucun élève pour ce filtre.</div>' : '')}
 
@@ -704,6 +710,41 @@ function renderBilanView() {
   `;
 }
 
+/* --- GALERIE ADMIN --- */
+function renderAdminGalleryView() {
+  const albums = galleryEvents();
+  return `
+    <div class="admin-banner"><i class="ph-fill ph-images" style="font-size:22px;color:var(--as-green-light)"></i>Galerie Photos (Edunuage)</div>
+    <div class="form-card">
+      <h3 style="margin-bottom:14px;">📸 Publier un album photo</h3>
+      <form id="album-form">
+        <div class="field"><label>Titre de l'album</label><input class="input" id="alb-titre" required placeholder="Ex: Cross Départemental 2026"></div>
+        <div class="field"><label>Date</label><input class="input" id="alb-date" type="date" value="${getToday()}" required></div>
+        <div class="field"><label>Lien de partage Edunuage</label><input class="input" id="alb-link" type="url" required placeholder="https://edunuage.ac-poitiers.fr/..."></div>
+        <button class="btn btn-primary" type="submit">Publier l'album</button>
+      </form>
+    </div>
+
+    <div class="section-title">📂 Albums publiés (${albums.length})</div>
+    ${albums.map(e => {
+      const theme = getEventTheme(e.titre, e.description);
+      return `<div class="card">
+        <div class="card-flex">
+          <div class="event-thumb" style="background:${theme.color}">${theme.emoji}</div>
+          <div class="event-info">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+              <span class="badge gray">${esc(cap(fmtDate(e.date)))}</span>
+              <button class="icon-action" style="background:#fee2e2;color:var(--red);" data-a="delete-album" data-id="${e.id}" title="Retirer l'album"><i class="ph-bold ph-trash"></i></button>
+            </div>
+            <h3>${esc(e.titre)}</h3>
+          </div>
+        </div>
+        <a class="btn btn-orange" href="${esc(e.edunuageLink)}" target="_blank" rel="noopener noreferrer" style="margin-top:12px;text-decoration:none;">📸 Ouvrir l'album Edunuage</a>
+      </div>`;
+    }).join('') || '<div class="empty">Aucun album publié pour le moment.</div>'}
+  `;
+}
+
 /* --- CARTES ÉVÉNEMENTS --- */
 function gaugeHTML(e, totalRegs) {
   const max = Number(e.places) || 0;
@@ -726,7 +767,7 @@ function eventCard(e, isAdmin) {
   const regState = !isAdmin ? getStudentRegStatus(e, S.profile?.licencieId) : { status:'none' };
 
   if (!isAdmin && S.tab === 'gallery') {
-    return `<div class="card past"><div class="card-flex"><div class="event-thumb" style="background:${theme.color}">${theme.emoji}</div><div class="event-info"><span class="badge gray">${esc(cap(fmtDate(e.date)))}</span><h3>${esc(e.titre)}</h3></div></div><a class="btn btn-orange" href="${esc(e.edunuageLink)}" target="_blank" style="margin-top:14px;text-decoration:none;">📸 Voir l'album</a></div>`;
+    return `<div class="card past"><div class="card-flex"><div class="event-thumb" style="background:${theme.color}">${theme.emoji}</div><div class="event-info"><span class="badge gray">${esc(cap(fmtDate(e.date)))}</span><h3>${esc(e.titre)}</h3></div></div><a class="btn btn-orange" href="${esc(e.edunuageLink)}" target="_blank" rel="noopener noreferrer" style="margin-top:14px;text-decoration:none;">📸 Voir l'album</a></div>`;
   }
 
   let studentBtn = '';
@@ -805,6 +846,7 @@ function renderPlanningView() {
 function vAdmin() {
   if (S.tab === 'appel') return renderAppelView();
   if (S.tab === 'bilan') return renderBilanView();
+  if (S.tab === 'gallery') return renderAdminGalleryView();
   if (S.tab === 'new') {
     const isEd = !!S.editId;
     return `
@@ -950,11 +992,14 @@ function renderSheet() {
     const u = S.users.find(x => x.licencieId === p.id);
     const tel = u?.telResponsable;
     return `<div class="att-row">
-      <div>
+      <div style="flex:1;min-width:0;">
         <strong>${prefix}${esc(S.isAdmin ? fullName(p) : shortName(p))}</strong>
         <div style="font-size:12px;color:var(--muted);">${S.isAdmin ? `Classe ${esc(p.class||'-')}${tel?' · '+esc(tel):''}` : 'Licencié(e) AS'}</div>
       </div>
-      ${S.isAdmin && tel ? `<a href="tel:${esc(tel)}" style="width:40px;height:40px;background:var(--green-status);color:#fff;border-radius:12px;display:grid;place-items:center;text-decoration:none;"><i class="ph-fill ph-phone"></i></a>` : ''}
+      ${S.isAdmin ? `<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        ${tel ? `<a href="tel:${esc(tel)}" style="width:38px;height:38px;background:var(--green-status);color:#fff;border-radius:11px;display:grid;place-items:center;text-decoration:none;" title="Appeler le responsable légal"><i class="ph-fill ph-phone" style="font-size:18px;"></i></a>` : ''}
+        <button data-a="admin-unreg" data-id="${e.id}" data-uid="${p.id}" style="width:38px;height:38px;background:#fee2e2;color:var(--red);border-radius:11px;display:grid;place-items:center;font-weight:900;font-size:16px;" title="Supprimer l'inscription">✕</button>
+      </div>` : ''}
     </div>`;
   };
 
@@ -994,7 +1039,7 @@ function render() {
   } else if (S.view === 'register') {
     const opts = activeLicencies().sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'))
       .map(r => `<option value="${r.id}">${esc(fullName(r))} (${esc(r.class||'-')})</option>`).join('');
-    $view.innerHTML = `<div class="form-card"><h2 style="margin-bottom:18px;">Créer mon compte</h2><form id="register-form"><div class="field"><label>Choisis ton nom</label><select class="input" id="r-lic" required><option value="">-- Sélectionner --</option>${opts}</select></div><div class="field"><label>Tél. d'urgence parents</label><input class="input" id="r-tel" type="tel" required></div><div class="field"><label>Email</label><input class="input" id="r-email" type="email" required></div><div class="field"><label>Mot de passe (6 car. min)</label><input class="input" id="r-pwd" type="password" minlength="6" required></div><button class="btn btn-orange" type="submit">Créer mon compte</button></form></div>`;
+    $view.innerHTML = `<div class="form-card"><h2 style="margin-bottom:18px;">Créer mon compte</h2><form id="register-form"><div class="field"><label>Choisis ton nom</label><select class="input" id="r-lic" required><option value="">-- Sélectionner --</option>${opts}</select></div><div class="field"><label>Tél. du responsable légal</label><input class="input" id="r-tel" type="tel" required></div><div class="field"><label>Email</label><input class="input" id="r-email" type="email" required></div><div class="field"><label>Mot de passe (6 car. min)</label><input class="input" id="r-pwd" type="password" minlength="6" required></div><button class="btn btn-orange" type="submit">Créer mon compte</button></form></div>`;
   } else if (S.view === 'admin') {
     $view.innerHTML = vAdmin();
   } else if (S.view === 'student') {
@@ -1006,9 +1051,9 @@ function render() {
   if (!S.user) { $nav.classList.add('hidden'); } else {
     $nav.classList.remove('hidden');
     const items = S.isAdmin
-      ? [['upcoming','ph-house','Accueil'], ['appel','ph-clipboard-text','Appel'], ['bilan','ph-chart-bar','Bilan'], ['new','ph-gear','Gestion']]
+      ? [['upcoming','ph-house','Accueil'], ['appel','ph-clipboard-text','Appel'], ['bilan','ph-chart-bar','Bilan'], ['gallery','ph-images','Galerie'], ['new','ph-gear','Gestion']]
       : [['upcoming','ph-calendar-check','À venir'], ['planning','ph-clock','Planning'], ['gallery','ph-images','Galerie']];
-    $nav.innerHTML = items.map(([id, ic, lb]) => `<button data-tab="${id}" class="${S.tab===id?'active':''}"><i class="${S.tab===id?'ph-fill':'ph'} ${ic}" style="font-size:24px;"></i>${lb}</button>`).join('');
+    $nav.innerHTML = items.map(([id, ic, lb]) => `<button data-tab="${id}" class="${S.tab===id?'active':''}"><i class="${S.tab===id?'ph-fill':'ph'} ${ic}" style="font-size:22px;"></i>${lb}</button>`).join('');
   }
   renderSheet();
 }
@@ -1103,7 +1148,7 @@ document.addEventListener('click', async ev => {
 
   const btn = ev.target.closest('[data-a]');
   if (btn) {
-    const { a, id } = btn.dataset;
+    const { a, id, uid } = btn.dataset;
     if (a === 'open-detail') { S.detailId = id; render(); }
     if (a === 'close-detail') { S.detailId = null; render(); }
     if (a === 'toggle-lock') {
@@ -1112,6 +1157,20 @@ document.addEventListener('click', async ev => {
     }
     if (a === 'delete-event') {
       if (confirm('Supprimer cet événement ?')) { await deleteDoc(doc(C_EVENTS, id)); toast('Supprimé'); }
+    }
+    if (a === 'delete-album') {
+      const e = S.events.find(x => x.id === id);
+      if (e && confirm('Retirer cet album de la galerie ?')) {
+        if (e.isAlbumOnly) await deleteDoc(doc(C_EVENTS, id));
+        else await updateDoc(doc(C_EVENTS, id), { edunuageLink: '' });
+        toast('Album retiré');
+      }
+    }
+    if (a === 'admin-unreg') {
+      if (uid && confirm("Supprimer l'inscription de cet élève ?")) {
+        await deleteDoc(doc(C_INSCRIPT, `${id}_${uid}`));
+        toast('Inscription supprimée', 'info');
+      }
     }
     if (a === 'edit-event') {
       const e = S.events.find(x => x.id === id);
@@ -1229,6 +1288,18 @@ document.addEventListener('submit', async ev => {
       regLock = false;
       toast(`Bienvenue ${lic.firstname} !`);
       location.reload();
+    }
+    if (form.id === 'album-form') {
+      await addDoc(C_EVENTS, {
+        titre: document.getElementById('alb-titre').value.trim(),
+        date: document.getElementById('alb-date').value,
+        edunuageLink: document.getElementById('alb-link').value.trim(),
+        isAlbumOnly: true,
+        isPast: true,
+        createdAt: Date.now()
+      });
+      form.reset();
+      toast('Album photo publié !');
     }
     if (form.id === 'event-form') {
       const data = {
