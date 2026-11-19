@@ -135,6 +135,7 @@ nav button.active{background:rgba(255,255,255,.16);color:#fff}
 .cat-pill.B{background:#dbeafe;color:#1d4ed8}
 .cat-pill.M{background:#fce7f3;color:#be185d}
 .cat-pill.G{background:#fef3c7;color:#b45309}
+.cat-pill.REG{background:var(--as-green-light);color:var(--as-green-dark)}
 
 #toasts{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 74px);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:200;pointer-events:none}
 .toast{background:var(--as-black);color:#fff;padding:12px 18px;border-radius:16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:10px;max-width:92%;box-shadow:0 8px 22px rgba(0,0,0,.3)}
@@ -245,7 +246,7 @@ const S = {
   events:[], inscriptions:[], users:[], licencies:[], attendance:[],
   schedule:{ ...DEFAULT_SCHEDULE }, flashInfo:'', unsubs:[], detailId:null, editId:null,
   studentFilter:'all',
-  attType:'training', attDate:getToday(), attEventId:'', attCat:'', attClass:'', attStatus:'all', attSearch:'',
+  attType:'training', attDate:getToday(), attEventId:'', attCat:'', attSexe:'', attStatus:'all', attSearch:'',
   bilanSearch:''
 };
 
@@ -451,7 +452,6 @@ async function saveAttPatch(patch) {
     activity: S.attType === 'training' ? trainingActivityFor(S.attDate) : (evt?.titre || 'Compétition'),
     eventId: S.attType === 'competition' ? S.attEventId : '',
     presentIds: existing.presentIds || [],
-    extraIds: existing.extraIds || [],
     guests: existing.guests || [],
     updatedAt: Date.now(),
     ...patch
@@ -495,18 +495,6 @@ window.addGuestStudent = async () => {
   toast(`${f} ${l.toUpperCase()} ajouté(e) présent(e) !`);
 };
 
-window.addUnregisteredToComp = async () => {
-  const id = document.getElementById('comp-add-lic')?.value;
-  if (!id || !S.attEventId) return;
-  const sess = currentAttSession() || {};
-  await saveAttPatch({
-    extraIds: [...new Set([...(sess.extraIds || []), id])],
-    presentIds: [...new Set([...(sess.presentIds || []), id])]
-  });
-  await setDoc(doc(C_INSCRIPT, `${S.attEventId}_${id}`), { eventId:S.attEventId, userId:id, timestamp:Date.now(), source:'appel' });
-  toast('Élève ajouté et pointé présent !');
-};
-
 window.exportCompPDF = () => {
   const evt = S.events.find(e => e.id === S.attEventId);
   const sess = currentAttSession();
@@ -527,7 +515,7 @@ window.exportCompPDF = () => {
   };
 
   presentLics.forEach(p => {
-    const c = getCategory(p), sx = p.sexe === 'F' ? 'F' : 'G';
+    const c = getCategory(p), sx = (p.sexe || 'G').toUpperCase().charAt(0);
     if (c === 'B' && sx === 'F') groups['Benjamines (BF)'].push(p);
     else if (c === 'B') groups['Benjamins (BG)'].push(p);
     else if (c === 'M' && sx === 'F') groups['Minimes Filles (MF)'].push(p);
@@ -570,10 +558,11 @@ function renderAppelView() {
   const sess = currentAttSession();
   const presentSet = new Set(sess?.presentIds || []);
   const guests = sess?.guests || [];
-  const classes = [...new Set(activeLicencies().map(l => l.class).filter(Boolean))].sort();
 
   let activity = '';
+  let regSet = new Set();
   let list = [];
+
   if (S.attType === 'training') {
     activity = trainingActivityFor(S.attDate);
     const prev = S.attendance
@@ -587,10 +576,11 @@ function renderAppelView() {
   } else {
     const evts = [...S.events].sort((a,b) => a.date.localeCompare(b.date));
     if (!S.attEventId && evts.length) S.attEventId = upcomingEvents()[0]?.id || evts[0].id;
-    const regIds = getEventRegistrations(S.attEventId).map(i => i.userId);
-    const ids = new Set([...regIds, ...(sess?.extraIds || [])]);
-    list = [...ids].map(id => S.licencies.find(l => l.id === id)).filter(Boolean)
-      .sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
+    regSet = new Set(getEventRegistrations(S.attEventId).map(i => i.userId));
+    list = [...activeLicencies()].sort((a,b) => {
+      const ra = regSet.has(a.id) ? 0 : 1, rb = regSet.has(b.id) ? 0 : 1;
+      return ra !== rb ? ra - rb : fullName(a).localeCompare(fullName(b), 'fr');
+    });
   }
 
   const term = S.attSearch.toLowerCase();
@@ -599,7 +589,7 @@ function renderAppelView() {
     if (S.attStatus === 'present' && !isP) return false;
     if (S.attStatus === 'absent' && isP) return false;
     if (S.attCat && getCategory(st) !== S.attCat) return false;
-    if (S.attClass && st.class !== S.attClass) return false;
+    if (S.attSexe && (st.sexe || 'G').toUpperCase().charAt(0) !== S.attSexe) return false;
     if (term && !fullName(st).toLowerCase().includes(term)) return false;
     return true;
   });
@@ -614,7 +604,6 @@ function renderAppelView() {
 
   const totalPresents = list.filter(s => presentSet.has(s.id)).length + guests.filter(g => presentSet.has(g.id)).length;
   const totalAll = list.length + guests.length;
-  const addable = activeLicencies().filter(l => !list.some(x => x.id === l.id)).sort((a,b) => fullName(a).localeCompare(fullName(b), 'fr'));
 
   return `
     <div class="admin-banner"><i class="ph-fill ph-clipboard-text" style="font-size:22px;color:var(--as-green-light)"></i>Appel & Présences</div>
@@ -654,10 +643,11 @@ function renderAppelView() {
             <option value="M" ${S.attCat==='M'?'selected':''}>Minimes</option>
           </select>
         </div>
-        <div class="field" style="margin:0"><label>Classe</label>
-          <select class="input" onchange="S.attClass=this.value;render()">
-            <option value="">Toutes</option>
-            ${classes.map(c => `<option value="${esc(c)}" ${S.attClass===c?'selected':''}>${esc(c)}</option>`).join('')}
+        <div class="field" style="margin:0"><label>Sexe</label>
+          <select class="input" onchange="S.attSexe=this.value;render()">
+            <option value="" ${S.attSexe===''?'selected':''}>Tous</option>
+            <option value="F" ${S.attSexe==='F'?'selected':''}>Filles</option>
+            <option value="G" ${S.attSexe==='G'?'selected':''}>Garçons</option>
           </select>
         </div>
       </div>
@@ -677,25 +667,19 @@ function renderAppelView() {
     ${filtered.map(st => {
       const isP = presentSet.has(st.id);
       const cat = getCategory(st);
+      const isReg = S.attType === 'competition' && regSet.has(st.id);
       return `<div class="att-row clickable ${isP?'is-present':''}" onclick="toggleAtt('${st.id}',false)">
         <div>
           <strong>${esc(fullName(st))}</strong>
-          <div style="font-size:12px;color:var(--muted);font-weight:600;">${esc(st.class||'')} ${cat==='B'?'<span class="cat-pill B">Benj.</span>':cat==='M'?'<span class="cat-pill M">Min.</span>':''}</div>
+          <div style="font-size:12px;color:var(--muted);font-weight:600;">
+            ${esc(st.class||'')}
+            ${cat==='B'?'<span class="cat-pill B">Benj.</span>':cat==='M'?'<span class="cat-pill M">Min.</span>':''}
+            ${isReg?'<span class="cat-pill REG">Inscrit</span>':''}
+          </div>
         </div>
         <div class="att-pill">${isP?'✓ PRÉSENT':'ABSENT'}</div>
       </div>`;
     }).join('') || (!filteredGuests.length ? '<div class="empty">Aucun élève pour ce filtre.</div>' : '')}
-
-    ${S.attType === 'competition' && S.attEventId ? `
-      <div class="card" style="margin-top:14px;">
-        <div class="field"><label>Ajouter un licencié non inscrit</label>
-          <select class="input" id="comp-add-lic">
-            <option value="">-- Choisir un licencié --</option>
-            ${addable.map(l => `<option value="${l.id}">${esc(fullName(l))} (${esc(l.class||'-')})</option>`).join('')}
-          </select>
-        </div>
-        <button class="btn btn-ghost" onclick="addUnregisteredToComp()">+ Ajouter et pointer présent</button>
-      </div>` : ''}
 
     <div class="card" style="margin-top:14px;">
       <label style="display:block;font-size:11px;font-weight:800;margin-bottom:8px;text-transform:uppercase;">➕ Ajouter un élève hors-liste</label>
@@ -966,7 +950,7 @@ function renderSheet() {
 
   const groups = { BF:[], BG:[], MF:[], MG:[], Autre:[] };
   confirmed.forEach(p => {
-    const cat = getCategory(p), sx = p.sexe === 'F' ? 'F' : 'G';
+    const cat = getCategory(p), sx = (p.sexe || 'G').toUpperCase().charAt(0) === 'F' ? 'F' : 'G';
     if (cat === 'B') groups['B'+sx].push(p);
     else if (cat === 'M') groups['M'+sx].push(p);
     else groups.Autre.push(p);
