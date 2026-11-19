@@ -44,6 +44,9 @@ main.no-nav{padding-bottom:28px}
 main::-webkit-scrollbar{width:0}
 
 .flash-banner{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;color:#78350f;border-radius:18px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:700;line-height:1.4;box-shadow:var(--shadow-sm)}
+.notif-card{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:18px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:700}
+.notif-btn{background:var(--blue);color:#fff;padding:8px 12px;border-radius:11px;font-weight:800;font-size:12px;white-space:nowrap}
+
 .card,.form-card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px;position:relative;overflow:hidden;border:1px solid rgba(26,92,56,.08)}
 .card.past{background:#f3f4f6;opacity:.88;border-color:var(--line)}
 .card-flex{display:flex;gap:14px;align-items:flex-start}
@@ -195,6 +198,7 @@ nav button.active{background:rgba(255,255,255,.16);color:#fff}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCmV2E6dhnXPDNjjMkVQHI8IH2nXKQByvc",
@@ -205,11 +209,24 @@ const firebaseConfig = {
   appId: "1:943879688117:web:0ddb0d3ce3801b07ff13fc"
 };
 
+const VAPID_KEY = "BD6sH8T02QTRO3j_-F6SweVOSWgqklqBLwGTBS2OzVA79E0SzsWgBjLRUaEO0yu-k7EQ0noLSjXDeGpMYOHt74s";
+
 const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
 const auth = getAuth(app);
+
+let messaging = null;
+try {
+  if ('Notification' in window && 'serviceWorker' in navigator) {
+    messaging = getMessaging(app);
+    onMessage(messaging, payload => {
+      const body = payload.notification?.body || 'Nouveau Flash Info !';
+      toast('📢 ' + body, 'info');
+    });
+  }
+} catch (e) { console.log('FCM non supporté sur ce navigateur'); }
 
 const ADMIN_EMAIL = 'epsclaudie@gmail.com';
 const ACCESS_CODE = 'ROUILLAC16';
@@ -219,6 +236,7 @@ const C_INSCRIPT = collection(db, 'as_inscriptions');
 const C_USERS = collection(db, 'as_users');
 const C_LICENCIES = collection(db, 'as_licencies');
 const C_ATTENDANCE = collection(db, 'as_attendance');
+const C_TOKENS = collection(db, 'as_tokens');
 const DOC_SETTINGS = doc(db, 'as_settings', 'main');
 
 const DAY_LABELS = { 1:'Lundi', 2:'Mardi', 4:'Jeudi', 5:'Vendredi' };
@@ -253,6 +271,36 @@ const S = {
 const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');
 const $head = document.getElementById('header-actions');
+
+/* --- NOTIFICATIONS PUSH --- */
+window.enableNotifications = async () => {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !messaging) {
+    return toast('Notifications non supportées (ajoute l’appli à l’écran d’accueil sur iPhone).', 'error');
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return toast('Autorisation refusée.', 'error');
+    const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    if (token && S.user) {
+      await setDoc(doc(C_TOKENS, token), { token, uid: S.user.uid, updatedAt: Date.now() });
+      toast('🔔 Notifications activées !');
+      render();
+    }
+  } catch (err) {
+    console.error(err);
+    toast('Impossible d’activer les notifications.', 'error');
+  }
+};
+
+function notifBannerHTML() {
+  if (!('Notification' in window) || !messaging) return '';
+  if (Notification.permission === 'granted') return '';
+  return `<div class="notif-card">
+    <span>🔔 Recevoir les alertes Flash Info</span>
+    <button class="notif-btn" onclick="enableNotifications()">Activer</button>
+  </div>`;
+}
 
 /* --- INDICATEUR HORS-LIGNE --- */
 function updateNetBadge() {
@@ -853,7 +901,7 @@ function vAdmin() {
       <div class="admin-banner"><i class="ph-fill ph-gear" style="font-size:22px;color:var(--as-green-light)"></i>Gestion AS</div>
       ${!isEd ? `
       <div class="form-card">
-        <h3 style="margin-bottom:10px;">📢 Flash Info (Accueil)</h3>
+        <h3 style="margin-bottom:10px;">📢 Flash Info (Accueil + Push)</h3>
         <div class="field"><textarea class="input" id="flash-input" rows="2" placeholder="Laissez vide pour masquer le bandeau...">${esc(S.flashInfo)}</textarea></div>
         <button class="btn btn-primary" onclick="saveFlashInfo()">Publier le Flash Info</button>
       </div>
@@ -956,7 +1004,7 @@ function vStudent() {
   const mineList = allUpcoming.filter(e => getStudentRegStatus(e, licId).status !== 'none');
   const displayList = S.studentFilter === 'mine' ? mineList : allUpcoming.slice(0, 3);
 
-  return head + flashBannerHTML() + renderTop10(true) + `
+  return head + notifBannerHTML() + flashBannerHTML() + renderTop10(true) + `
     <div class="switch-tabs">
       <button class="${S.studentFilter==='all'?'active':''}" onclick="S.studentFilter='all';render()">3 prochaines sorties</button>
       <button class="${S.studentFilter==='mine'?'active':''}" onclick="S.studentFilter='mine';render()">Mes inscriptions (${mineList.length})</button>
@@ -1061,7 +1109,7 @@ function render() {
 /* --- PARAMÈTRES, FLASH INFO & LICENCIÉS --- */
 window.saveFlashInfo = async () => {
   const flashInfo = document.getElementById('flash-input').value.trim();
-  await setDoc(DOC_SETTINGS, { flashInfo }, { merge:true });
+  await setDoc(DOC_SETTINGS, { flashInfo, flashUpdatedAt: Date.now() }, { merge:true });
   toast(flashInfo ? 'Flash Info publié !' : 'Flash Info masqué.', 'info');
 };
 
