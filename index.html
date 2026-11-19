@@ -212,7 +212,7 @@ const db = initializeFirestore(app, {
 const auth = getAuth(app);
 
 const ADMIN_EMAIL = 'epsclaudie@gmail.com';
-const ACCESS_CODE = 'Rouillac16';
+const ACCESS_CODE = 'ROUILLAC16';
 
 const C_EVENTS = collection(db, 'as_events');
 const C_INSCRIPT = collection(db, 'as_inscriptions');
@@ -246,7 +246,7 @@ const S = {
   events:[], inscriptions:[], users:[], licencies:[], attendance:[],
   schedule:{ ...DEFAULT_SCHEDULE }, flashInfo:'', unsubs:[], detailId:null, editId:null,
   studentFilter:'all',
-  attType:'training', attDate:getToday(), attEventId:'', attCat:'', attSexe:'', attStatus:'all', attSearch:'',
+  attType:'training', attDate:getToday(), attEventId:'', attCat:'', attStatus:'all', attSearch:'',
   bilanSearch:''
 };
 
@@ -589,7 +589,6 @@ function renderAppelView() {
     if (S.attStatus === 'present' && !isP) return false;
     if (S.attStatus === 'absent' && isP) return false;
     if (S.attCat && getCategory(st) !== S.attCat) return false;
-    if (S.attSexe && (st.sexe || 'G').toUpperCase().charAt(0) !== S.attSexe) return false;
     if (term && !fullName(st).toLowerCase().includes(term)) return false;
     return true;
   });
@@ -635,21 +634,12 @@ function renderAppelView() {
     </div>
 
     <div class="card">
-      <div class="grid2" style="margin-bottom:10px;">
-        <div class="field" style="margin:0"><label>Catégorie (âge)</label>
-          <select class="input" onchange="S.attCat=this.value;render()">
-            <option value="" ${S.attCat===''?'selected':''}>Toutes</option>
-            <option value="B" ${S.attCat==='B'?'selected':''}>Benjamins</option>
-            <option value="M" ${S.attCat==='M'?'selected':''}>Minimes</option>
-          </select>
-        </div>
-        <div class="field" style="margin:0"><label>Sexe</label>
-          <select class="input" onchange="S.attSexe=this.value;render()">
-            <option value="" ${S.attSexe===''?'selected':''}>Tous</option>
-            <option value="F" ${S.attSexe==='F'?'selected':''}>Filles</option>
-            <option value="G" ${S.attSexe==='G'?'selected':''}>Garçons</option>
-          </select>
-        </div>
+      <div class="field"><label>Catégorie (âge)</label>
+        <select class="input" onchange="S.attCat=this.value;render()">
+          <option value="" ${S.attCat===''?'selected':''}>Toutes catégories</option>
+          <option value="B" ${S.attCat==='B'?'selected':''}>Benjamins</option>
+          <option value="M" ${S.attCat==='M'?'selected':''}>Minimes</option>
+        </select>
       </div>
       <input class="input" type="search" placeholder="🔍 Rechercher un élève..." value="${esc(S.attSearch)}" oninput="S.attSearch=this.value;render()">
     </div>
@@ -1264,7 +1254,7 @@ document.addEventListener('submit', async ev => {
 });
 
 window.checkCode = () => {
-  if (document.getElementById('guard-input').value.trim() === ACCESS_CODE) { S.view = 'register'; render(); }
+  if (document.getElementById('guard-input').value.trim().toUpperCase() === ACCESS_CODE) { S.view = 'register'; render(); }
   else toast('Code incorrect', 'error');
 };
 window.signOutAuth = () => signOut(auth);
