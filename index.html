@@ -198,7 +198,7 @@ nav button.active{background:rgba(255,255,255,.16);color:#fff}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
+import { getMessaging, getToken, onMessage, isSupported } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
 const firebaseConfig = {
@@ -222,15 +222,25 @@ const callSendFlashInfo = httpsCallable(functions, 'sendFlashInfo');
 const callSendCompetitionAlert = httpsCallable(functions, 'sendCompetitionAlert');
 
 let messaging = null;
-try {
-  if ('Notification' in window && 'serviceWorker' in navigator) {
-    messaging = getMessaging(app);
-    onMessage(messaging, payload => {
-      const body = payload.data?.body || payload.notification?.body || 'Nouvelle information !';
-      toast('📢 ' + body, 'info');
-    });
+let pushCapabilityReady = false;
+const messagingReady = (async () => {
+  try {
+    const supported = await isSupported();
+    if (supported && 'Notification' in window && 'serviceWorker' in navigator) {
+      messaging = getMessaging(app);
+      onMessage(messaging, payload => {
+        const body = payload.data?.body || payload.notification?.body || 'Nouvelle information !';
+        toast('📢 ' + body, 'info');
+      });
+    }
+  } catch (e) {
+    console.warn('Notifications Web Push indisponibles sur cet appareil :', e);
+  } finally {
+    pushCapabilityReady = true;
   }
-} catch (e) { console.log('FCM non supporté sur ce navigateur'); }
+  return !!messaging;
+})();
+messagingReady.then(() => render());
 
 const ADMIN_EMAIL = 'epsclaudie@gmail.com';
 const ACCESS_CODE = 'ROUILLAC16';
@@ -270,7 +280,7 @@ const S = {
   schedule:{ ...DEFAULT_SCHEDULE }, flashInfo:'', unsubs:[], detailId:null, editId:null,
   studentFilter:'all',
   attType:'training', attDate:getToday(), attEventId:'', attCat:'', attStatus:'all', attSearch:'',
-  bilanSearch:''
+  bilanSearch:'', pushReady:false, pushError:''
 };
 
 const $view = document.getElementById('view');
@@ -319,43 +329,151 @@ if ('serviceWorker' in navigator) {
 }
 
 
-/* --- NOTIFICATIONS PUSH & LIAISON LICENCIÉ --- */
+/* --- NOTIFICATIONS PUSH : PARCOURS UNIFIÉ ANDROID / APPLE --- */
+function notificationPlatform() {
+  if (isIOSDevice) return 'ios';
+  if (/Android/i.test(navigator.userAgent)) return 'android';
+  return 'other';
+}
+
+function notificationPermission() {
+  return ('Notification' in window) ? Notification.permission : 'unsupported';
+}
+
 async function syncPushToken(silent = false) {
-  if (!('Notification' in window) || !('serviceWorker' in navigator) || !messaging || !S.user) return;
-  if (Notification.permission !== 'granted') return;
+  if (!S.user) return false;
+  await messagingReady;
+  if (!messaging || !('Notification' in window) || !('serviceWorker' in navigator)) {
+    S.pushReady = false;
+    S.pushError = 'unsupported';
+    return false;
+  }
+  if (Notification.permission !== 'granted') {
+    S.pushReady = false;
+    S.pushError = Notification.permission;
+    return false;
+  }
+  if (isIOSDevice && !isAppInstalled()) {
+    S.pushReady = false;
+    S.pushError = 'ios-install-required';
+    return false;
+  }
   try {
-    const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+    const reg = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
+    await navigator.serviceWorker.ready;
     const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-    if (token) {
-      await setDoc(doc(C_TOKENS, token), {
-        token,
-        uid: S.user.uid,
-        licencieId: S.profile?.licencieId || '',
-        updatedAt: Date.now()
-      }, { merge: true });
-      if (!silent) toast('🔔 Notifications activées !');
-    }
+    if (!token) throw new Error('Firebase n’a pas fourni de jeton pour cet appareil.');
+    await setDoc(doc(C_TOKENS, token), {
+      token,
+      uid: S.user.uid,
+      licencieId: S.profile?.licencieId || '',
+      platform: notificationPlatform(),
+      updatedAt: Date.now()
+    }, { merge: true });
+    S.pushReady = true;
+    S.pushError = '';
+    if (!silent) toast('🔔 Notifications activées sur cet appareil !');
+    return true;
   } catch (err) {
-    if (!silent) toast('Impossible d’activer les notifications.', 'error');
+    console.error('Activation des notifications impossible :', err);
+    S.pushReady = false;
+    S.pushError = err?.message || 'registration-failed';
+    if (!silent) toast('Activation incomplète : ' + (err?.message || 'vérifie les réglages du téléphone.'), 'error');
+    return false;
   }
 }
 
 window.enableNotifications = async () => {
-  if (!('Notification' in window) || !('serviceWorker' in navigator) || !messaging) {
-    return toast('Notifications non supportées (ajoute l’appli à l’écran d’accueil sur iPhone).', 'error');
+  const platform = notificationPlatform();
+  if (platform === 'ios' && !isAppInstalled()) {
+    return window.showNotificationHelp('ios-install');
   }
-  const perm = await Notification.requestPermission();
-  if (perm !== 'granted') return toast('Autorisation refusée.', 'error');
-  await syncPushToken(false);
-  render();
+  await messagingReady;
+  if (!messaging || !('Notification' in window) || !('serviceWorker' in navigator)) {
+    return window.showNotificationHelp('unsupported');
+  }
+  if (Notification.permission === 'denied') {
+    return window.showNotificationHelp('blocked');
+  }
+  try {
+    // La demande native est déclenchée uniquement après le clic de l'utilisateur.
+    const permission = Notification.permission === 'granted'
+      ? 'granted'
+      : await Notification.requestPermission();
+    if (permission !== 'granted') {
+      S.pushReady = false;
+      S.pushError = permission;
+      render();
+      if (permission === 'denied') window.showNotificationHelp('blocked');
+      else toast('Autorisation non accordée. Tu pourras réessayer plus tard.', 'info');
+      return;
+    }
+    await syncPushToken(false);
+    render();
+  } catch (err) {
+    console.error(err);
+    S.pushReady = false;
+    S.pushError = err?.message || 'unknown';
+    render();
+    toast('Impossible de terminer l’activation. Consulte le petit guide affiché.', 'error');
+  }
 };
 
-function notifBannerHTML() {
-  if (!('Notification' in window) || !messaging) return '';
-  if (Notification.permission === 'granted') return '';
-  return `<div class="notif-card">
-    <span>🔔 Recevoir les alertes Flash Info</span>
-    <button class="notif-btn" onclick="enableNotifications()">Activer</button>
+window.showNotificationHelp = (reason = 'general') => {
+  const platform = notificationPlatform();
+  let message = '';
+  if (reason === 'ios-install' || (platform === 'ios' && !isAppInstalled())) {
+    message = 'Sur iPhone ou iPad :\n1. Ouvre cette page dans Safari.\n2. Appuie sur le bouton Partager.\n3. Choisis « Sur l’écran d’accueil ».\n4. Ouvre ensuite l’icône AS depuis l’écran d’accueil.\n5. Dans l’application installée, appuie sur « Activer mes notifications ».\n\nLes notifications Web Push nécessitent une version iOS/iPadOS compatible (16.4 ou ultérieure) et l’application ajoutée à l’écran d’accueil.';
+  } else if (reason === 'blocked' && platform === 'ios') {
+    message = 'Sur iPhone/iPad :\n1. Ouvre Réglages.\n2. Va dans Notifications.\n3. Sélectionne AS Haigneré si elle apparaît.\n4. Active « Autoriser les notifications ».\n5. Rouvre l’application AS depuis l’écran d’accueil.\n\nSi AS n’apparaît pas, supprime puis ajoute à nouveau l’application à l’écran d’accueil depuis Safari.';
+  } else if (reason === 'blocked' && platform === 'android') {
+    message = 'Sur Android :\n1. Ouvre les Paramètres du téléphone.\n2. Va dans Applications puis Chrome (ou le navigateur utilisé).\n3. Ouvre Notifications et autorise-les.\n4. Dans Chrome, ouvre les paramètres du site rouillacc.github.io et autorise les notifications.\n5. Sur Xiaomi, vérifie aussi que les notifications de Chrome ne sont pas bloquées par le système.';
+  } else if (reason === 'unsupported') {
+    message = 'Ce navigateur ne permet pas actuellement les notifications AS.\nSur Android, utilise une version récente de Chrome.\nSur iPhone/iPad, utilise Safari, ajoute AS à l’écran d’accueil, puis ouvre l’application installée.';
+  } else {
+    message = 'Pour recevoir les notifications, autorise-les lorsque le navigateur le demande. Si tu as déjà refusé, ouvre les paramètres de notifications du navigateur ou du téléphone et autorise AS.';
+  }
+  alert(message);
+};
+
+function notificationPanelHTML() {
+  if (!S.user) return '';
+  if (!pushCapabilityReady) {
+    return `<div class="notif-card"><span>🔔 Vérification des notifications sur cet appareil…</span></div>`;
+  }
+  if (S.pushReady) {
+    return `<div class="notif-card" style="background:#ecfdf5;border-color:#86efac;color:#166534;display:block;">
+      <div style="font-weight:900;margin-bottom:3px;">✓ Notifications activées</div>
+      <div style="font-size:12px;font-weight:600;">Cet appareil est enregistré pour recevoir les informations de l’AS.</div>
+      <button class="notif-btn" style="margin-top:9px;background:#166534;" onclick="enableNotifications()">Vérifier</button>
+      <button class="notif-btn" style="margin-top:9px;margin-left:6px;background:#374151;" onclick="showNotificationHelp('blocked')">Problème de réception ?</button>
+    </div>`;
+  }
+  if (notificationPlatform() === 'ios' && !isAppInstalled()) {
+    return `<div class="notif-card" style="display:block;">
+      <div style="font-weight:900;margin-bottom:4px;">📲 Une petite étape avant les notifications</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:9px;">Sur iPhone, ajoute d’abord AS à l’écran d’accueil depuis Safari. Ensuite, ouvre l’icône AS et active les notifications.</div>
+      <button class="notif-btn" onclick="showNotificationHelp('ios-install')">Voir comment faire</button>
+    </div>`;
+  }
+  if (notificationPermission() === 'denied') {
+    return `<div class="notif-card" style="display:block;">
+      <div style="font-weight:900;margin-bottom:4px;">🔕 Notifications bloquées</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:9px;">Le téléphone ou le navigateur bloque actuellement les notifications. Le guide t’indique où les autoriser.</div>
+      <button class="notif-btn" onclick="showNotificationHelp('blocked')">Voir comment autoriser</button>
+    </div>`;
+  }
+  if (!messaging) {
+    return `<div class="notif-card" style="display:block;">
+      <div style="font-weight:900;margin-bottom:4px;">Notifications non disponibles</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:9px;">Mets à jour ton navigateur. Sur iPhone, utilise Safari et l’application ajoutée à l’écran d’accueil.</div>
+      <button class="notif-btn" onclick="showNotificationHelp('unsupported')">Aide</button>
+    </div>`;
+  }
+  return `<div class="notif-card" style="display:block;">
+    <div style="font-weight:900;margin-bottom:4px;">🔔 Recevoir les notifications de l’AS</div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:9px;">Flash Info et informations importantes sur les compétitions, même lorsque l’application est fermée.</div>
+    <button class="notif-btn" onclick="enableNotifications()">Activer mes notifications</button>
   </div>`;
 }
 
@@ -463,9 +581,11 @@ onAuthStateChanged(auth, async user => {
   if (regLock) return;
   S.unsubs.forEach(u => u()); S.unsubs = [];
   if (!user) {
-    Object.assign(S, { user:null, profile:null, isAdmin:false, tab:'upcoming', view:'guard' });
+    Object.assign(S, { user:null, profile:null, isAdmin:false, tab:'upcoming', view:'guard', pushReady:false, pushError:'' });
     render(); return;
   }
+  S.pushReady = false;
+  S.pushError = '';
   S.user = user;
   S.isAdmin = (user.email || '').toLowerCase() === ADMIN_EMAIL;
   if (S.isAdmin) {
@@ -1101,7 +1221,7 @@ function vStudent() {
   const mineList = allUpcoming.filter(e => getStudentRegStatus(e, licId).status !== 'none');
   const displayList = S.studentFilter === 'mine' ? mineList : allUpcoming.slice(0, 3);
 
-  return head + notifBannerHTML() + flashBannerHTML() + renderTop10(true) + `
+  return head + flashBannerHTML() + renderTop10(true) + `
     <div class="switch-tabs">
       <button class="${S.studentFilter==='all'?'active':''}" onclick="S.studentFilter='all';render()">3 prochaines sorties</button>
       <button class="${S.studentFilter==='mine'?'active':''}" onclick="S.studentFilter='mine';render()">Mes inscriptions (${mineList.length})</button>
@@ -1191,7 +1311,12 @@ function render() {
     $view.innerHTML = vStudent();
   }
 
-  if (S.user) { const installBanner = installBannerHTML(); if (installBanner) $view.insertAdjacentHTML('afterbegin', installBanner); }
+  if (S.user) {
+    const notifPanel = notificationPanelHTML();
+    if (notifPanel) $view.insertAdjacentHTML('afterbegin', notifPanel);
+    const installBanner = installBannerHTML();
+    if (installBanner) $view.insertAdjacentHTML('afterbegin', installBanner);
+  }
 
   $view.classList.toggle('no-nav', !S.user);
   $view.scrollTop = scroll;
