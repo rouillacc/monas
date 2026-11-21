@@ -199,6 +199,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCmV2E6dhnXPDNjjMkVQHI8IH2nXKQByvc",
@@ -216,13 +217,16 @@ const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
 const auth = getAuth(app);
+const functions = getFunctions(app, 'europe-west9');
+const callSendFlashInfo = httpsCallable(functions, 'sendFlashInfo');
+const callSendCompetitionAlert = httpsCallable(functions, 'sendCompetitionAlert');
 
 let messaging = null;
 try {
   if ('Notification' in window && 'serviceWorker' in navigator) {
     messaging = getMessaging(app);
     onMessage(messaging, payload => {
-      const body = payload.notification?.body || 'Nouvelle information !';
+      const body = payload.data?.body || payload.notification?.body || 'Nouvelle information !';
       toast('📢 ' + body, 'info');
     });
   }
@@ -272,6 +276,48 @@ const S = {
 const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');
 const $head = document.getElementById('header-actions');
+
+/* --- INSTALLATION PWA --- */
+let deferredInstallPrompt = null;
+const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAppInstalled = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  render();
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  toast('Application installée !');
+  render();
+});
+window.installASApp = async () => {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    render();
+    return;
+  }
+  if (isIOSDevice) {
+    alert('Pour installer l’application sur iPhone/iPad : appuyez sur Partager, puis « Sur l’écran d’accueil ».');
+    return;
+  }
+  toast('Dans Chrome ou Edge, ouvrez le menu du navigateur puis choisissez « Installer AS Haigneré ».', 'info');
+};
+function installBannerHTML() {
+  if (isAppInstalled()) return '';
+  if (deferredInstallPrompt) return `<div class="notif-card"><span>📲 Installer l’application AS sur cet appareil</span><button class="notif-btn" onclick="installASApp()">Installer</button></div>`;
+  if (isIOSDevice) return `<div class="notif-card"><span>📲 Ajouter AS à l’écran d’accueil</span><button class="notif-btn" onclick="installASApp()">Comment faire</button></div>`;
+  return '';
+}
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' })
+      .catch(err => console.warn('Service worker non enregistré :', err));
+  });
+}
+
 
 /* --- NOTIFICATIONS PUSH & LIAISON LICENCIÉ --- */
 async function syncPushToken(silent = false) {
@@ -561,24 +607,24 @@ window.addGuestStudent = async () => {
 window.sendCompAlert = async (presetMsg = '') => {
   const evt = S.events.find(e => e.id === S.attEventId);
   const sess = currentAttSession();
-  const presentIds = (sess?.presentIds || []).filter(id => !id.startsWith('guest_'));
+  const presentIds = (sess?.presentIds || []).filter(id => !String(id).startsWith('guest_'));
   if (!evt || !presentIds.length) return toast('Aucun licencié présent à prévenir.', 'error');
 
   const input = document.getElementById('comp-alert-msg');
   const msg = (presetMsg || input?.value || '').trim();
   if (!msg) return toast('Saisissez un message.', 'error');
-
   if (!confirm(`Envoyer cette alerte uniquement aux ${presentIds.length} présent(s) ?\n\n"${msg}"`)) return;
 
-  await addDoc(C_ALERTS, {
-    title: `🚌 ${evt.titre}`,
-    body: msg,
-    targetLicencieIds: presentIds,
-    eventId: evt.id,
-    createdAt: Date.now()
-  });
-  if (input) input.value = '';
-  toast(`🔔 Alerte envoyée aux ${presentIds.length} présent(s) !`);
+  try {
+    toast('Envoi de la notification…', 'info');
+    const result = await callSendCompetitionAlert({ eventId: evt.id, message: msg });
+    const data = result.data || {};
+    if (input) input.value = '';
+    if (!data.deviceCount) toast(`Aucun appareil n’a activé les notifications parmi les ${data.targetLicencieCount || presentIds.length} présents.`, 'error');
+    else toast(`🔔 Notification envoyée à ${data.sentCount || 0} appareil(s) pour ${data.targetLicencieCount || presentIds.length} présent(s).`);
+  } catch (err) {
+    toast(err.message || 'Échec de l’envoi de la notification.', 'error');
+  }
 };
 
 window.exportCompPDF = () => {
@@ -1145,6 +1191,8 @@ function render() {
     $view.innerHTML = vStudent();
   }
 
+  if (S.user) { const installBanner = installBannerHTML(); if (installBanner) $view.insertAdjacentHTML('afterbegin', installBanner); }
+
   $view.classList.toggle('no-nav', !S.user);
   $view.scrollTop = scroll;
   if (!S.user) { $nav.classList.add('hidden'); } else {
@@ -1160,8 +1208,21 @@ function render() {
 /* --- PARAMÈTRES, FLASH INFO & LICENCIÉS --- */
 window.saveFlashInfo = async () => {
   const flashInfo = document.getElementById('flash-input').value.trim();
-  await setDoc(DOC_SETTINGS, { flashInfo, flashUpdatedAt: Date.now() }, { merge:true });
-  toast(flashInfo ? 'Flash Info publié !' : 'Flash Info masqué.', 'info');
+  try {
+    await setDoc(DOC_SETTINGS, { flashInfo, flashUpdatedAt: Date.now() }, { merge:true });
+    if (!flashInfo) return toast('Flash Info masqué.', 'info');
+    try {
+      toast('Flash Info publié · envoi des notifications…', 'info');
+      const result = await callSendFlashInfo({ message: flashInfo });
+      const data = result.data || {};
+      if (!data.deviceCount) toast('Flash Info publié, mais aucun appareil n’a activé les notifications.', 'info');
+      else toast(`📢 Flash Info publié et envoyé à ${data.sentCount || 0} appareil(s).`);
+    } catch (pushErr) {
+      toast('Flash Info publié, mais notification non envoyée : ' + (pushErr.message || 'erreur inconnue'), 'error');
+    }
+  } catch (err) {
+    toast(err.message || 'Impossible de publier le Flash Info.', 'error');
+  }
 };
 
 window.saveSchedule = async () => {

@@ -12,12 +12,32 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Les fonctions Firebase envoient des messages data-only : une seule notification
+// est donc affichée ici lorsque l’application est en arrière-plan.
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || 'AS Claudie Haigneré';
+  const data = payload.data || {};
+  const title = data.title || 'AS Claudie Haigneré';
   const options = {
-    body: payload.notification?.body || 'Nouvelle information disponible !',
+    body: data.body || 'Nouvelle information disponible !',
     icon: './1000203112.jpg',
-    badge: './1000203112.jpg'
+    badge: './1000203112.jpg',
+    data: { url: data.url || './' }
   };
   self.registration.showNotification(title, options);
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || './', self.registration.scope).href;
+  event.waitUntil((async () => {
+    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) {
+      if ('focus' in client) {
+        await client.focus();
+        if ('navigate' in client) await client.navigate(targetUrl);
+        return;
+      }
+    }
+    if (clients.openWindow) await clients.openWindow(targetUrl);
+  })());
 });
